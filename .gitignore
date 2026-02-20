@@ -1,0 +1,17 @@
+# Data files
+*.csv
+*.xlsx
+data/
+
+# Mac system files
+.DS_Store
+
+# Python environment
+__pycache__/
+*.pyc
+.env
+venv/
+env/
+
+# Streamlit
+.streamlit/
