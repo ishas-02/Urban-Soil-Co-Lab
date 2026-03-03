@@ -324,14 +324,41 @@ st.markdown("### Preliminary XRF Analysis & Lead (Pb) Monitoring")
 st.markdown("---")
 
 # --- DATA LOADING FUNCTION ---
+# @st.cache_data
+# def load_data():
+#     # 1. Find all chemistry files INSIDE the 'xrf_data' folder
+#     # We use os.path.join to ensure it works on both Windows and Mac
+#     search_path = os.path.join('xrf_data', 'chemistry*.csv')
+#     files = glob.glob(search_path)
+    
+#     if not files:
+#         return pd.DataFrame()
+    
+#     all_data = []
+#     for f in files:
+#         df = pd.read_csv(f)
+#         # Create a clean Timestamp
+#         df['DateTime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'])
+#         all_data.append(df)
+        
+#     final_df = pd.concat(all_data, ignore_index=True)
+
+# --- DATA LOADING FUNCTION ---
 @st.cache_data
 def load_data():
-    # 1. Find all chemistry files INSIDE the 'xrf_data' folder
-    # We use os.path.join to ensure it works on both Windows and Mac
-    search_path = os.path.join('xrf_data', 'chemistry*.csv')
+    # 1. Get the absolute path of the 'src' directory where dashboard.py lives
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # 2. Navigate up to the root, then into Data/xrf_data (Capital 'D' to match your folder!)
+    data_dir = os.path.join(base_dir, '..', 'data', 'xrf_data')
+    
+    # 3. Create the search path
+    search_path = os.path.join(data_dir, 'chemistry*.csv')
     files = glob.glob(search_path)
     
     if not files:
+        # Prints to your terminal so we can see exactly where it searched if it fails
+        print(f"DEBUG: Looked for files in: {search_path}") 
         return pd.DataFrame()
     
     all_data = []
@@ -342,6 +369,15 @@ def load_data():
         all_data.append(df)
         
     final_df = pd.concat(all_data, ignore_index=True)
+    
+    # Clean & Rename Key Columns
+    elements = {'Pb': 'Lead', 'Zn': 'Zinc', 'As': 'Arsenic', 'Fe': 'Iron'}
+    for sym, name in elements.items():
+        col_name = f"{sym} Concentration"
+        if col_name in final_df.columns:
+            final_df[name] = pd.to_numeric(final_df[col_name], errors='coerce')
+    
+    return final_df
     
     # 2. Clean & Rename Key Columns
     # Ensure numeric conversion for key elements
