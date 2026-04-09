@@ -1,494 +1,483 @@
-# import streamlit as st
-# import pandas as pd
-# import plotly.express as px
-# import plotly.graph_objects as go
-# import glob
-# import os
+# """
+# dashboard.py — GroundSense Streamlit Dashboard
 
-# # --- PAGE CONFIGURATION ---
-# st.set_page_config(page_title="GroundSense Dashboard", page_icon="🌱", layout="wide")
-
-# # --- TITLE & HEADER ---
-# st.title("🌱 Urban Soil Health Dashboard")
-# st.markdown("### Preliminary XRF Analysis & Lead (Pb) Monitoring")
-# st.markdown("---")
-
-# # --- DATA LOADING FUNCTION ---
-# # @st.cache_data
-# # def load_data():
-# #     # 1. Find all chemistry files INSIDE the 'xrf_data' folder
-# #     # We use os.path.join to ensure it works on both Windows and Mac
-# #     search_path = os.path.join('xrf_data', 'chemistry*.csv')
-# #     files = glob.glob(search_path)
-    
-# #     if not files:
-# #         return pd.DataFrame()
-    
-# #     all_data = []
-# #     for f in files:
-# #         df = pd.read_csv(f)
-# #         # Create a clean Timestamp
-# #         df['DateTime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'])
-# #         all_data.append(df)
-        
-# #     final_df = pd.concat(all_data, ignore_index=True)
-
-# # --- DATA LOADING FUNCTION ---
-# @st.cache_data
-# def load_data():
-#     # 1. Get the absolute path of the 'src' directory where dashboard.py lives
-#     base_dir = os.path.dirname(os.path.abspath(__file__))
-    
-#     # 2. Navigate up to the root, then into Data/xrf_data (Capital 'D' to match your folder!)
-#     data_dir = os.path.join(base_dir, '..', 'data', 'xrf_data')
-    
-#     # 3. Create the search path
-#     search_path = os.path.join(data_dir, 'chemistry*.csv')
-#     files = glob.glob(search_path)
-    
-#     if not files:
-#         # Prints to your terminal so we can see exactly where it searched if it fails
-#         print(f"DEBUG: Looked for files in: {search_path}") 
-#         return pd.DataFrame()
-    
-#     all_data = []
-#     for f in files:
-#         df = pd.read_csv(f)
-#         # Create a clean Timestamp
-#         df['DateTime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'])
-#         all_data.append(df)
-        
-#     final_df = pd.concat(all_data, ignore_index=True)
-    
-#     # Clean & Rename Key Columns
-#     elements = {'Pb': 'Lead', 'Zn': 'Zinc', 'As': 'Arsenic', 'Fe': 'Iron'}
-#     for sym, name in elements.items():
-#         col_name = f"{sym} Concentration"
-#         if col_name in final_df.columns:
-#             final_df[name] = pd.to_numeric(final_df[col_name], errors='coerce')
-    
-#     return final_df
-    
-#     # 2. Clean & Rename Key Columns
-#     # Ensure numeric conversion for key elements
-#     elements = {'Pb': 'Lead', 'Zn': 'Zinc', 'As': 'Arsenic', 'Fe': 'Iron'}
-#     for sym, name in elements.items():
-#         col_name = f"{sym} Concentration"
-#         if col_name in final_df.columns:
-#             # Force numeric, turning '<LOD' into NaN (or 0 if you prefer)
-#             final_df[name] = pd.to_numeric(final_df[col_name], errors='coerce')
-    
-#     return final_df
-
-# # --- LOAD DATA ---
-# df = load_data()
-
-# if df.empty:
-#     st.error("No data found! Please ensure your chemistry files are inside the 'xrf_data' folder.")
-#     st.stop()
-
-# # --- SIDEBAR FILTERS ---
-# st.sidebar.header("Filter Options")
-# date_range = st.sidebar.date_input("Select Date Range", [df['DateTime'].min(), df['DateTime'].max()])
-# epa_limit = st.sidebar.number_input("EPA Safety Limit (ppm)", value=400, step=50)
-
-# # Filter data based on selection
-# mask = (df['DateTime'].dt.date >= date_range[0]) & (df['DateTime'].dt.date <= date_range[1])
-# filtered_df = df.loc[mask]
-
-# # --- KEY METRICS ROW ---
-# col1, col2, col3, col4 = st.columns(4)
-
-# avg_lead = filtered_df['Lead'].mean()
-# max_lead = filtered_df['Lead'].max()
-# high_risk_count = filtered_df[filtered_df['Lead'] > epa_limit].shape[0]
-# percent_safe = 100 - (high_risk_count / len(filtered_df) * 100) if len(filtered_df) > 0 else 100
-
-# # NEW METRIC: Calculate total sites/readings examined
-# sites_examined = len(filtered_df)
-
-# col1.metric("Avg Lead Level", f"{avg_lead:.1f} ppm", delta_color="inverse")
-# col2.metric("Max Detected", f"{max_lead:.0f} ppm", delta="-High" if max_lead > epa_limit else "normal")
-# col3.metric("Sites Examined", f"{sites_examined}")
-# col4.metric("Safety Rate", f"{percent_safe:.1f}%")
-
-# st.markdown("---")
-
-# # --- VISUALIZATIONS ---
-
-# # ROW 1: Distribution 
-# st.subheader("📊 Lead Distribution Histogram")
-# fig_hist = px.histogram(filtered_df, x="Lead", nbins=20, title="Frequency of Lead Concentrations",
-#                         color_discrete_sequence=['#2E8B57'])
-# fig_hist.add_vline(x=epa_limit, line_dash="dash", line_color="red", annotation_text="EPA Limit")
-# # Displaying the chart in full width now since the other chart is removed
-# st.plotly_chart(fig_hist, use_container_width=True)
-
-# st.markdown("---")
-
-# # ROW 2: Advanced Correlations (The "Creative" Part)
-# st.subheader("🔬 Multi-Element Soil Fingerprint")
-# st.markdown("Lead contamination often co-occurs with other heavy metals. This chart explores those relationships.")
-
-# # Check if we have Zinc and Arsenic data
-# if 'Zinc' in filtered_df.columns and 'Arsenic' in filtered_df.columns:
-#     # --- FIX START: Handle Missing Values for Plotting ---
-#     # Create a copy so we don't mess up the original data
-#     plot_df = filtered_df.copy()
-    
-#     # Fill missing Arsenic values with 0 so the code doesn't crash
-#     # (Visually, this means points with no Arsenic data will be very small dots)
-#     plot_df['Arsenic'] = plot_df['Arsenic'].fillna(1) 
-    
-#     # Also fill Iron just in case
-#     if 'Iron' in plot_df.columns:
-#         plot_df['Iron'] = plot_df['Iron'].fillna(0)
-#     # --- FIX END ---
-
-#     fig_corr = px.scatter(plot_df, x="Zinc", y="Lead", 
-#                           size="Arsenic", color="Iron",
-#                           # Update hover data to use the filled dataframe
-#                           hover_data=['DateTime', 'Lead', 'Zinc', 'Arsenic'],
-#                           title="Lead vs. Zinc Correlation (Sized by Arsenic, Colored by Iron)",
-#                           color_continuous_scale="Viridis")
-#     st.plotly_chart(fig_corr, use_container_width=True)
-# else:
-#     st.info("Zinc or Arsenic data missing from current dataset.")
+# Config-driven geospatial maps for all sites.
+# Place in src/ alongside groundsense_config.py.
+# Place site_configs.json in data/site_configs/.
+# """
 
 # import streamlit as st
 # import pandas as pd
 # import plotly.express as px
-# import plotly.graph_objects as go
-# import glob
-# import os
-
-# # --- PAGE CONFIGURATION ---
-# st.set_page_config(page_title="GroundSense Dashboard", page_icon="🌱", layout="wide")
-
-# # --- TITLE, HEADER & REFRESH BUTTON ---
-# # We use columns to put the title on the left and a refresh button on the right
-# col_title, col_btn = st.columns([8, 2])
-# with col_title:
-#     st.title("🌱 Urban Soil Health Dashboard")
-#     st.markdown("### Preliminary XRF Analysis & Lead (Pb) Monitoring")
-
-# with col_btn:
-#     # This button forces Streamlit to clear its memory and pull fresh data from the folder
-#     st.write("") # Spacing to align with title
-#     if st.button("🔄 Refresh Data", type="primary", use_container_width=True):
-#         st.cache_data.clear()
-#         st.rerun()
-
-# st.markdown("---")
-
-# # --- DATA LOADING FUNCTION ---
-# @st.cache_data
-# def load_data():
-#     # 1. Get the absolute path of the 'src' directory where dashboard.py lives
-#     base_dir = os.path.dirname(os.path.abspath(__file__))
-    
-#     # 2. Navigate up to the root, then into Data/xrf_data (Capital 'D')
-#     data_dir = os.path.join(base_dir, '..', 'Data', 'xrf_data')
-    
-#     # 3. Create the search path
-#     search_path = os.path.join(data_dir, 'chemistry*.csv')
-#     files = glob.glob(search_path)
-    
-#     if not files:
-#         print(f"DEBUG: Looked for files in: {search_path}") 
-#         return pd.DataFrame()
-    
-#     all_data = []
-#     for f in files:
-#         df = pd.read_csv(f)
-#         # Create a clean Timestamp
-#         df['DateTime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'])
-#         all_data.append(df)
-        
-#     final_df = pd.concat(all_data, ignore_index=True)
-    
-#     # 4. Clean & Rename Key Columns
-#     elements = {'Pb': 'Lead', 'Zn': 'Zinc', 'As': 'Arsenic', 'Fe': 'Iron'}
-#     for sym, name in elements.items():
-#         col_name = f"{sym} Concentration"
-#         if col_name in final_df.columns:
-#             # Force numeric, turning '<LOD' into NaN
-#             final_df[name] = pd.to_numeric(final_df[col_name], errors='coerce')
-    
-#     return final_df
-
-# # --- LOAD DATA ---
-# df = load_data()
-
-# if df.empty:
-#     st.error("No data found! Please ensure your chemistry files are inside the 'Data/xrf_data' folder.")
-#     st.stop()
-
-# # --- SIDEBAR FILTERS ---
-# st.sidebar.header("Filter Options")
-# date_range = st.sidebar.date_input("Select Date Range", [df['DateTime'].min(), df['DateTime'].max()])
-# epa_limit = st.sidebar.number_input("EPA Safety Limit (ppm)", value=400, step=50)
-
-# # Filter data based on selection
-# mask = (df['DateTime'].dt.date >= date_range[0]) & (df['DateTime'].dt.date <= date_range[1])
-# filtered_df = df.loc[mask]
-
-# # --- KEY METRICS ROW ---
-# col1, col2, col3, col4 = st.columns(4)
-
-# avg_lead = filtered_df['Lead'].mean()
-# max_lead = filtered_df['Lead'].max()
-# high_risk_count = filtered_df[filtered_df['Lead'] > epa_limit].shape[0]
-# percent_safe = 100 - (high_risk_count / len(filtered_df) * 100) if len(filtered_df) > 0 else 100
-
-# sites_examined = len(filtered_df)
-
-# col1.metric("Avg Lead Level", f"{avg_lead:.1f} ppm", delta_color="inverse")
-# col2.metric("Max Detected", f"{max_lead:.0f} ppm", delta="-High" if max_lead > epa_limit else "normal")
-# col3.metric("Sites Examined", f"{sites_examined}")
-# col4.metric("Safety Rate", f"{percent_safe:.1f}%")
-
-# st.markdown("---")
-
-# # --- VISUALIZATIONS ---
-
-# # ROW 1: Distribution 
-# st.subheader("📊 Lead Distribution Histogram")
-# fig_hist = px.histogram(filtered_df, x="Lead", nbins=20, title="Frequency of Lead Concentrations",
-#                         color_discrete_sequence=['#2E8B57'])
-# fig_hist.add_vline(x=epa_limit, line_dash="dash", line_color="red", annotation_text="EPA Limit")
-# st.plotly_chart(fig_hist, use_container_width=True)
-
-# st.markdown("---")
-
-# # ROW 2: Advanced Correlations 
-# st.subheader("🔬 Multi-Element Soil Fingerprint")
-# st.markdown("Lead contamination often co-occurs with other heavy metals. This chart explores those relationships.")
-
-# # Check if we have Zinc and Arsenic data
-# if 'Zinc' in filtered_df.columns and 'Arsenic' in filtered_df.columns:
-#     plot_df = filtered_df.copy()
-    
-#     # Handle Missing Values for Plotting
-#     plot_df['Arsenic'] = plot_df['Arsenic'].fillna(1) 
-#     if 'Iron' in plot_df.columns:
-#         plot_df['Iron'] = plot_df['Iron'].fillna(0)
-
-#     fig_corr = px.scatter(plot_df, x="Zinc", y="Lead", 
-#                           size="Arsenic", color="Iron",
-#                           hover_data=['DateTime', 'Lead', 'Zinc', 'Arsenic'],
-#                           title="Lead vs. Zinc Correlation (Sized by Arsenic, Colored by Iron)",
-#                           color_continuous_scale="Viridis")
-#     st.plotly_chart(fig_corr, use_container_width=True)
-# else:
-#     st.info("Zinc or Arsenic data missing from current dataset.")
-
-# import streamlit as st
-# import pandas as pd
-# import plotly.express as px
-# import plotly.graph_objects as go
 # import glob
 # import os
 # import re
+# import json
+# import folium
+# from streamlit_folium import st_folium
 
-# # --- PAGE CONFIGURATION ---
+# from groundsense_config import (
+#     get_nysh_category,
+#     NYSH_COLORS,
+#     NYSH_TIERS,
+#     calculate_coordinate,
+#     resolve_lod,
+# )
+
+
+# # ═══════════════════════════════════════════════
+# #  PAGE SETUP
+# # ═══════════════════════════════════════════════
 # st.set_page_config(page_title="GroundSense Dashboard", page_icon="🌱", layout="wide")
 
-# # --- TITLE, HEADER & REFRESH BUTTON ---
 # col_title, col_btn = st.columns([8, 2])
 # with col_title:
 #     st.title("🌱 Urban Soil Health Dashboard")
 #     st.markdown("### Preliminary XRF Analysis & Lead (Pb) Monitoring")
-
 # with col_btn:
-#     st.write("") 
+#     st.write("")
 #     if st.button("🔄 Refresh Data", type="primary", use_container_width=True):
 #         st.cache_data.clear()
 #         st.rerun()
 
 # st.markdown("---")
 
-# # --- NYSH COLOR MAPPING FUNCTION ---
-# def get_nysh_category(ppm):
-#     if pd.isna(ppm): return 'Unknown'
-#     if ppm < 63: return 'Safe (< 63 ppm)'
-#     elif ppm < 100: return 'Elevated (63-99 ppm)'
-#     elif ppm < 200: return 'Contaminated (100-199 ppm)'
-#     elif ppm < 400: return 'High (200-399 ppm)'
-#     else: return 'Hazard (400+ ppm)'
 
-# nysh_colors = {
-#     'Safe (< 63 ppm)': '#2ecc71',
-#     'Elevated (63-99 ppm)': '#f1c40f',
-#     'Contaminated (100-199 ppm)': '#e67e22',
-#     'High (200-399 ppm)': '#e74c3c',
-#     'Hazard (400+ ppm)': '#8e44ad',
-#     'Unknown': '#808080'
-# }
-
-# # --- DATA LOADING FUNCTIONS ---
+# # ═══════════════════════════════════════════════
+# #  DATA LOADING
+# # ═══════════════════════════════════════════════
 # @st.cache_data
 # def load_chemistry_data():
-#     """Loads raw chemistry files for overall metrics and correlations."""
 #     base_dir = os.path.dirname(os.path.abspath(__file__))
-#     data_dir = os.path.join(base_dir, '..', 'Data', 'xrf_data')
-#     search_path = os.path.join(data_dir, 'chemistry*.csv')
-#     files = glob.glob(search_path)
-    
+#     data_dir = os.path.join(base_dir, '..', 'data', 'xrf_data')
+#     files = glob.glob(os.path.join(data_dir, 'chemistry*.csv'))
 #     if not files:
 #         return pd.DataFrame()
-    
+
 #     all_data = []
 #     for f in files:
 #         df = pd.read_csv(f)
 #         df['DateTime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'])
 #         all_data.append(df)
-        
+
 #     final_df = pd.concat(all_data, ignore_index=True)
-    
-#     # Clean & Rename Key Columns
 #     elements = {'Pb': 'Lead', 'Zn': 'Zinc', 'As': 'Arsenic', 'Fe': 'Iron'}
 #     for sym, name in elements.items():
-#         col_name = f"{sym} Concentration"
-#         if col_name in final_df.columns:
-#             final_df[name] = pd.to_numeric(final_df[col_name], errors='coerce')
-            
+#         col = f"{sym} Concentration"
+#         if col in final_df.columns:
+#             final_df[name] = pd.to_numeric(final_df[col], errors='coerce')
 #     return final_df
+
 
 # @st.cache_data
 # def load_master_data():
-#     """Loads the latest Master Data file to get mapped SampleIDs and Addresses."""
 #     base_dir = os.path.dirname(os.path.abspath(__file__))
-#     master_dir = os.path.join(base_dir, '..', 'Data', 'master_data')
+#     master_dir = os.path.join(base_dir, '..', 'data', 'master_data')
 #     master_files = glob.glob(os.path.join(master_dir, 'Master_Data_v*.csv'))
-    
 #     if not master_files:
 #         return pd.DataFrame()
-        
-#     def get_version(filename):
-#         match = re.search(r'_v(\d+)\.csv', filename)
-#         return int(match.group(1)) if match else 0
-        
-#     latest_file = max(master_files, key=get_version)
-#     df = pd.read_csv(latest_file)
-    
-#     # MAP ADDRESSES FROM SITE DATABASE
-#     site_db_path = os.path.join(base_dir, '..', 'Data', 'site_databases', 'XRF Site Analysis Database W SampleID(Sheet1).csv')
+
+#     def get_version(fn):
+#         m = re.search(r'_v(\d+)\.csv', fn)
+#         return int(m.group(1)) if m else 0
+
+#     latest = max(master_files, key=get_version)
+#     df = pd.read_csv(latest)
+
+#     # Apply LOD policy
+#     df['LeadPPM_Clean'] = df['LeadPPM'].apply(resolve_lod)
+
+#     # Map addresses from Site DB
+#     site_db_path = os.path.join(base_dir, '..', 'data', 'site_databases',
+#                                 'XRF Site Analysis Database W SampleID(Sheet1).csv')
 #     if os.path.exists(site_db_path):
 #         site_db = pd.read_csv(site_db_path, header=1, encoding='latin1')
 #         site_db['Address'] = site_db['Address'].ffill()
-#         site_mapping = dict(zip(site_db['SampleID'].dropna(), site_db['Address'].dropna()))
-#         df['Site_Address'] = df['SampleID'].map(site_mapping).fillna("Unknown Address")
+#         mapping = dict(zip(site_db['SampleID'].dropna(), site_db['Address'].dropna()))
+#         df['Site_Address'] = df['SampleID'].map(mapping).fillna("Unknown Address")
 #     else:
 #         df['Site_Address'] = "Unknown Address"
-        
 #     return df
 
-# # --- LOAD DATA ---
+
+# @st.cache_data
+# def load_site_configs():
+#     base_dir = os.path.dirname(os.path.abspath(__file__))
+#     config_path = os.path.join(base_dir, '..', 'data', 'site_configs', 'site_configs.json')
+#     if not os.path.exists(config_path):
+#         return {}
+#     with open(config_path, 'r') as f:
+#         raw = json.load(f)
+#     return {site["address"]: site for site in raw}
+
+
+# # ═══════════════════════════════════════════════
+# #  MAP GENERATION ENGINE
+# # ═══════════════════════════════════════════════
+
+# def match_sample_to_master(patterns, master_df):
+#     """Pattern-match SampleID substrings and return average Lead PPM or None."""
+#     for pattern in patterns:
+#         matches = master_df[master_df['SampleID'].str.contains(pattern, case=False, na=False)]
+#         if not matches.empty:
+#             avg = matches['LeadPPM_Clean'].mean()
+#             if pd.notna(avg):
+#                 return avg
+#     return None
+
+
+# def generate_site_map(site_config, master_df):
+#     """
+#     Generate a Folium satellite map for any site using its config.
+#     Grid blocks become Rectangles, point samples become CircleMarkers.
+#     Returns: (folium.Map, stats_dict)
+#     """
+#     anchor = site_config["anchor"]
+#     defaults = site_config.get("map_defaults", {})
+
+#     # Center map with offset for framing
+#     center_lat, center_lon = calculate_coordinate(
+#         anchor["lat"], anchor["lon"],
+#         defaults.get("center_offset_north_ft", 10),
+#         defaults.get("center_offset_east_ft", 0)
+#     )
+
+#     m = folium.Map(
+#         location=[center_lat, center_lon],
+#         zoom_start=defaults.get("zoom_start", 20),
+#         max_zoom=25, tiles=None
+#     )
+
+#     # Esri Satellite with deep zoom
+#     folium.TileLayer(
+#         tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+#         attr='Esri', name='Esri Satellite',
+#         max_zoom=25, max_native_zoom=19,
+#         overlay=False, control=True
+#     ).add_to(m)
+
+#     # Anchor marker
+#     folium.Marker(
+#         location=[anchor["lat"], anchor["lon"]],
+#         tooltip=f"<b>{anchor.get('marker_label', 'Anchor')}</b>",
+#         icon=folium.Icon(color='red', icon='home')
+#     ).add_to(m)
+
+#     # Filter master data to this site
+#     site_df = master_df[master_df['Site_Address'] == site_config['address']].copy()
+
+#     # If no site_address match, try matching ALL master data (for sites where
+#     # the address mapping in the site DB might differ)
+#     if site_df.empty:
+#         site_df = master_df.copy()
+
+#     stats = {"total_blocks": 0, "real_data": 0, "mock_data": 0, "blocks": []}
+
+#     # ── GRID BLOCKS (Rectangles) ──
+#     grid = site_config.get("grid_blocks", {})
+#     for block_id, dims in grid.items():
+#         if block_id.startswith("_"):
+#             continue
+
+#         stats["total_blocks"] += 1
+
+#         # Convert foot offsets to GPS via spherical trig
+#         sw_lat, sw_lon = calculate_coordinate(anchor["lat"], anchor["lon"], dims["sw_y"], dims["sw_x"])
+#         ne_lat, ne_lon = calculate_coordinate(anchor["lat"], anchor["lon"], dims["ne_y"], dims["ne_x"])
+
+#         # Match to real XRF data
+#         patterns = dims.get("sample_id_patterns", [])
+#         real_ppm = match_sample_to_master(patterns, site_df)
+
+#         if real_ppm is not None:
+#             ppm = real_ppm
+#             data_source = "XRF Data"
+#             stats["real_data"] += 1
+#         else:
+#             ppm = dims.get("mock_ppm", 0)
+#             data_source = "Estimated"
+#             stats["mock_data"] += 1
+
+#         label, color_hex = get_nysh_category(ppm)
+#         width_ft = abs(dims["ne_x"] - dims["sw_x"])
+#         height_ft = abs(dims["ne_y"] - dims["sw_y"])
+
+#         tooltip_html = f"""
+#         <div style='font-family: Arial; font-size: 13px; line-height: 1.5;'>
+#             <b style='font-size: 14px;'>{block_id}</b><br>
+#             <b>Lead:</b> {ppm:.1f} ppm
+#             <span style='color: {color_hex}; font-weight: bold;'>●</span><br>
+#             <b>NYSH:</b> {label}<br>
+#             <b>Size:</b> {width_ft:.1f} × {height_ft:.1f} ft<br>
+#             <b>Source:</b> {data_source}
+#         </div>
+#         """
+
+#         folium.Rectangle(
+#             bounds=[[sw_lat, sw_lon], [ne_lat, ne_lon]],
+#             color='white', weight=2,
+#             fill=True, fill_color=color_hex, fill_opacity=0.75,
+#             tooltip=tooltip_html
+#         ).add_to(m)
+
+#         stats["blocks"].append({
+#             "id": block_id, "ppm": ppm, "label": label,
+#             "source": data_source, "zone": dims.get("zone", "")
+#         })
+
+#     # ── POINT SAMPLES (CircleMarkers) ──
+#     points = site_config.get("point_samples", {})
+#     for pt_id, pt in points.items():
+#         if pt_id.startswith("_"):
+#             continue
+
+#         ox = pt.get("offset_x")
+#         oy = pt.get("offset_y")
+#         if ox is None or oy is None:
+#             continue
+
+#         pt_lat, pt_lon = calculate_coordinate(anchor["lat"], anchor["lon"], oy, ox)
+
+#         patterns = pt.get("sample_id_patterns", [])
+#         real_ppm = match_sample_to_master(patterns, site_df)
+
+#         if real_ppm is not None:
+#             ppm = real_ppm
+#             data_source = "XRF Data"
+#             stats["real_data"] += 1
+#             label, color_hex = get_nysh_category(ppm)
+#             ppm_str = f"{ppm:.1f} ppm"
+#         else:
+#             ppm = None
+#             data_source = "No Data"
+#             label, color_hex = "Unknown", "#808080"
+#             ppm_str = "No data"
+
+#         stats["total_blocks"] += 1
+#         stats["blocks"].append({
+#             "id": pt_id, "ppm": ppm or 0, "label": label,
+#             "source": data_source, "zone": pt.get("zone", "")
+#         })
+
+#         tooltip_html = f"""
+#         <div style='font-family: Arial; font-size: 13px; line-height: 1.5;'>
+#             <b style='font-size: 14px;'>{pt_id}</b><br>
+#             <b>Lead:</b> {ppm_str}
+#             <span style='color: {color_hex}; font-weight: bold;'>●</span><br>
+#             <b>NYSH:</b> {label}<br>
+#             <b>Source:</b> {data_source}<br>
+#             <b>Type:</b> Point sample
+#         </div>
+#         """
+
+#         folium.CircleMarker(
+#             location=[pt_lat, pt_lon],
+#             radius=8, color='white', weight=2,
+#             fill=True, fill_color=color_hex, fill_opacity=0.85,
+#             tooltip=tooltip_html
+#         ).add_to(m)
+
+#     # ── LEGEND ──
+#     legend_html = """
+#     <div style="position: fixed; bottom: 30px; left: 30px; z-index: 1000;
+#                 background: rgba(20,24,32,0.92); padding: 14px 18px;
+#                 border-radius: 10px; font-family: Arial; font-size: 12px;
+#                 color: #e8eaed; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+#                 border: 1px solid rgba(255,255,255,0.1);">
+#         <b style="font-size: 13px;">NYSH Lead Guidelines</b><br>
+#     """
+#     for tier in NYSH_TIERS:
+#         legend_html += f"""
+#         <span style="display: inline-block; width: 12px; height: 12px;
+#                       background: {tier['color']}; border-radius: 2px;
+#                       margin-right: 6px; vertical-align: middle;"></span>
+#         {tier['label']}<br>
+#         """
+#     legend_html += """
+#         <span style="display: inline-block; width: 12px; height: 12px;
+#                       background: #808080; border-radius: 2px;
+#                       margin-right: 6px; vertical-align: middle;"></span>
+#         No Data<br>
+#         <hr style="border-color: rgba(255,255,255,0.15); margin: 6px 0;">
+#         <span style="font-size: 11px;">■ = Grid block &nbsp; ● = Point sample</span>
+#     </div>
+#     """
+#     m.get_root().html.add_child(folium.Element(legend_html))
+
+#     return m, stats
+
+
+# # ═══════════════════════════════════════════════
+# #  LOAD ALL DATA
+# # ═══════════════════════════════════════════════
 # chem_df = load_chemistry_data()
 # master_df = load_master_data()
+# site_configs = load_site_configs()
 
 # if chem_df.empty:
-#     st.error("No data found! Please ensure your chemistry files are inside the 'Data/xrf_data' folder.")
+#     st.error("No data found! Ensure your chemistry files are inside 'data/xrf_data/'.")
 #     st.stop()
 
-# # --- SIDEBAR FILTERS ---
+
+# # ═══════════════════════════════════════════════
+# #  SIDEBAR FILTERS
+# # ═══════════════════════════════════════════════
 # st.sidebar.header("Filter Options")
-# date_range = st.sidebar.date_input("Select Date Range", [chem_df['DateTime'].min(), chem_df['DateTime'].max()])
+# date_range = st.sidebar.date_input(
+#     "Select Date Range",
+#     [chem_df['DateTime'].min(), chem_df['DateTime'].max()]
+# )
 # epa_limit = st.sidebar.number_input("EPA Safety Limit (ppm)", value=400, step=50)
 
-# mask = (chem_df['DateTime'].dt.date >= date_range[0]) & (chem_df['DateTime'].dt.date <= date_range[1])
+# mask = (
+#     (chem_df['DateTime'].dt.date >= date_range[0]) &
+#     (chem_df['DateTime'].dt.date <= date_range[1])
+# )
 # filtered_chem_df = chem_df.loc[mask]
 
-# # --- KEY METRICS ROW ---
+
+# # ═══════════════════════════════════════════════
+# #  KEY METRICS ROW
+# # ═══════════════════════════════════════════════
 # col1, col2, col3, col4 = st.columns(4)
 # avg_lead = filtered_chem_df['Lead'].mean()
 # max_lead = filtered_chem_df['Lead'].max()
-# high_risk_count = filtered_chem_df[filtered_chem_df['Lead'] > epa_limit].shape[0]
-# percent_safe = 100 - (high_risk_count / len(filtered_chem_df) * 100) if len(filtered_chem_df) > 0 else 100
+# high_risk = filtered_chem_df[filtered_chem_df['Lead'] > epa_limit].shape[0]
+# pct_safe = 100 - (high_risk / len(filtered_chem_df) * 100) if len(filtered_chem_df) > 0 else 100
 
 # col1.metric("Avg Lead Level", f"{avg_lead:.1f} ppm", delta_color="inverse")
-# col2.metric("Max Detected", f"{max_lead:.0f} ppm", delta="-High" if max_lead > epa_limit else "normal")
+# col2.metric("Max Detected", f"{max_lead:.0f} ppm",
+#             delta="-High" if max_lead > epa_limit else "normal")
 # col3.metric("Total Readings", f"{len(filtered_chem_df)}")
-# col4.metric("Safety Rate", f"{percent_safe:.1f}%")
+# col4.metric("Safety Rate", f"{pct_safe:.1f}%")
 
 # st.markdown("---")
 
-# # --- VISUALIZATIONS ---
 
-# # ROW 1: NYSH CONCEPTUAL GRID HEATMAP
-# st.subheader("🟩 Conceptual Site Heatmap (NYSH Guidelines)")
-# st.markdown("Select a site address to view the lead concentration breakdown by specific sample regions (e.g., A1, B2).")
+# # ═══════════════════════════════════════════════
+# #  GEOSPATIAL MAPS — ALL SITES
+# # ═══════════════════════════════════════════════
+# st.subheader("🗺️ High-Resolution Geospatial Site Maps (NYSH Guidelines)")
 
-# if not master_df.empty and 'Site_Address' in master_df.columns:
-#     # Get list of unique sites, filter out "Unknown" if possible, and create a dropdown
-#     site_list = sorted(master_df['Site_Address'].unique().tolist())
-#     selected_site = st.selectbox("Select Site:", site_list)
+# if not master_df.empty and site_configs:
+#     # Build site selector
+#     configured_addresses = list(site_configs.keys())
+#     master_addresses = master_df['Site_Address'].unique().tolist()
+#     all_addresses = configured_addresses + [
+#         a for a in sorted(master_addresses)
+#         if a not in configured_addresses and a != "Unknown Address"
+#     ]
 
-#     # Filter data for just the selected site
-#     site_df = master_df[master_df['Site_Address'] == selected_site].copy()
+#     selected_site = st.selectbox("Select Site to Map:", all_addresses)
 
-#     if not site_df.empty and 'SampleID' in site_df.columns:
-#         # Ensure Lead is numeric
-#         site_df['Lead'] = pd.to_numeric(site_df['LeadPPM'], errors='coerce')
-        
-#         # Group by SampleID to get the average lead for each sector of the yard
-#         grid_df = site_df.groupby('SampleID')['Lead'].mean().reset_index()
-        
-#         # Apply NYSH levels and a dummy 'Size' column so the blocks are drawn evenly
-#         grid_df['NYSH_Level'] = grid_df['Lead'].apply(get_nysh_category)
-#         grid_df['Block_Size'] = 1 
-        
-#         # Create the Treemap
-#         fig_grid = px.treemap(
-#             grid_df, 
-#             path=['SampleID'], 
-#             values='Block_Size',
-#             color='NYSH_Level',
-#             color_discrete_map=nysh_colors,
-#             custom_data=['Lead']
-#         )
-        
-#         # Format the text inside the blocks
-#         fig_grid.update_traces(
-#             hovertemplate="<b>Sample Sector:</b> %{label}<br><b>Avg Lead:</b> %{customdata[0]:.1f} ppm<extra></extra>",
-#             textinfo="label",
-#             textfont_size=18
-#         )
-#         fig_grid.update_layout(margin=dict(t=10, l=10, r=10, b=10))
-#         st.plotly_chart(fig_grid, use_container_width=True)
+#     if selected_site in site_configs:
+#         config = site_configs[selected_site]
+
+#         # Site metadata bar
+#         col_info1, col_info2, col_info3 = st.columns(3)
+#         col_info1.markdown(f"**Address:** {config['address']}, {config.get('city', '')}")
+#         col_info2.markdown(f"**Sampled:** {config.get('sampling_date', 'Unknown')}")
+#         grid_count = len([k for k in config.get('grid_blocks', {}) if not k.startswith('_')])
+#         col_info3.markdown(f"**Grid Blocks:** {grid_count}")
+
+#         if config.get("notes"):
+#             st.caption(config["notes"])
+
+#         # Generate and render the map
+#         site_map, stats = generate_site_map(config, master_df)
+#         st_folium(site_map, width=1000, height=600, returned_objects=[])
+
+#         # Stats below the map
+#         st.markdown("##### Map Data Summary")
+#         scol1, scol2, scol3 = st.columns(3)
+#         scol1.metric("Total Zones Mapped", stats["total_blocks"])
+#         scol2.metric("With Real XRF Data", stats["real_data"],
+#                      delta=f"{stats['real_data']/max(stats['total_blocks'],1)*100:.0f}%")
+#         scol3.metric("Using Estimates", stats["mock_data"],
+#                      delta=f"-{stats['mock_data']}" if stats["mock_data"] > 0 else "0",
+#                      delta_color="inverse")
+
+#         # NYSH category breakdown
+#         if stats["blocks"]:
+#             block_df = pd.DataFrame(stats["blocks"])
+#             cat_counts = block_df['label'].value_counts()
+#             st.markdown("**NYSH Category Breakdown (this site):**")
+#             cat_cols = st.columns(len(NYSH_TIERS))
+#             for i, tier in enumerate(NYSH_TIERS):
+#                 count = cat_counts.get(tier["label"], 0)
+#                 cat_cols[i].markdown(
+#                     f"<div style='text-align:center;'>"
+#                     f"<span style='color:{tier['color']}; font-size: 1.8rem; font-weight:bold;'>{count}</span><br>"
+#                     f"<span style='font-size: 0.72rem; color: #888;'>{tier['label'].split('(')[0].strip()}</span></div>",
+#                     unsafe_allow_html=True
+#                 )
 #     else:
-#         st.info("No valid Sample ID data available for this site.")
+#         st.info(
+#             f"📐 **No grid configuration found for '{selected_site}'.**\n\n"
+#             f"To enable the satellite map for this site, add an entry to "
+#             f"`data/site_configs/site_configs.json` with the anchor GPS coordinates "
+#             f"and grid block definitions.\n\n"
+#             f"See the README or an existing site config for the schema."
+#         )
+# elif not site_configs:
+#     st.warning(
+#         "⚠️ No `site_configs.json` found in `data/site_configs/`. "
+#         "The map engine needs this file to know how to lay out each site's grid."
+#     )
 # else:
-#     st.info("Please process data through the ETL Pipeline to generate Site Heatmaps.")
+#     st.info("Process data through the ETL Pipeline to generate Site Heatmaps.")
+
 
 # st.markdown("---")
 
-# # ROW 2: Distribution 
+
+# # ═══════════════════════════════════════════════
+# #  LEAD DISTRIBUTION HISTOGRAM
+# # ═══════════════════════════════════════════════
 # st.subheader("📊 Lead Distribution Histogram")
-# fig_hist = px.histogram(filtered_chem_df, x="Lead", nbins=20, title="Frequency of Lead Concentrations",
-#                         color_discrete_sequence=['#2E8B57'])
-# fig_hist.add_vline(x=epa_limit, line_dash="dash", line_color="red", annotation_text="EPA Limit")
+# fig_hist = px.histogram(
+#     filtered_chem_df, x="Lead", nbins=20,
+#     title="Frequency of Lead Concentrations",
+#     color_discrete_sequence=['#2E8B57']
+# )
+# fig_hist.add_vline(x=epa_limit, line_dash="dash", line_color="red",
+#                    annotation_text="EPA Limit")
 # st.plotly_chart(fig_hist, use_container_width=True)
 
+
 # st.markdown("---")
 
-# # ROW 3: Advanced Correlations 
+
+# # ═══════════════════════════════════════════════
+# #  MULTI-ELEMENT SOIL FINGERPRINT
+# # ═══════════════════════════════════════════════
 # st.subheader("🔬 Multi-Element Soil Fingerprint")
 # if 'Zinc' in filtered_chem_df.columns and 'Arsenic' in filtered_chem_df.columns:
 #     plot_df = filtered_chem_df.copy()
-#     plot_df['Arsenic'] = plot_df['Arsenic'].fillna(1) 
+#     plot_df['Arsenic'] = plot_df['Arsenic'].fillna(1)
 #     if 'Iron' in plot_df.columns:
 #         plot_df['Iron'] = plot_df['Iron'].fillna(0)
 
-#     fig_corr = px.scatter(plot_df, x="Zinc", y="Lead", 
-#                           size="Arsenic", color="Iron",
-#                           hover_data=['DateTime', 'Lead', 'Zinc', 'Arsenic'],
-#                           title="Lead vs. Zinc Correlation (Sized by Arsenic, Colored by Iron)",
-#                           color_continuous_scale="Viridis")
+#     fig_corr = px.scatter(
+#         plot_df, x="Zinc", y="Lead",
+#         size="Arsenic", color="Iron",
+#         hover_data=['DateTime', 'Lead', 'Zinc', 'Arsenic'],
+#         title="Lead vs. Zinc Correlation (Sized by Arsenic, Colored by Iron)",
+#         color_continuous_scale="Viridis"
+#     )
 #     st.plotly_chart(fig_corr, use_container_width=True)
 # else:
 #     st.info("Zinc or Arsenic data missing from current dataset.")
+
+"""
+dashboard.py — GroundSense Streamlit Dashboard (Launch Edition)
+
+Public-facing dashboard for Urban Soil Co-Lab.
+Config-driven geospatial maps for all sites.
+
+Place in src/ alongside groundsense_config.py.
+Place site_configs.json in data/site_configs/.
+"""
 
 import streamlit as st
 import pandas as pd
@@ -497,260 +486,796 @@ import plotly.graph_objects as go
 import glob
 import os
 import re
-import math
+import json
 import folium
 from streamlit_folium import st_folium
 
-# --- PAGE CONFIGURATION ---
-st.set_page_config(page_title="GroundSense Dashboard", page_icon="🌱", layout="wide")
+from groundsense_config import (
+    get_nysh_category,
+    NYSH_COLORS,
+    NYSH_TIERS,
+    calculate_coordinate,
+    resolve_lod,
+)
 
-# --- TITLE, HEADER & REFRESH BUTTON ---
-col_title, col_btn = st.columns([8, 2])
-with col_title:
-    st.title("🌱 Urban Soil Health Dashboard")
-    st.markdown("### Preliminary XRF Analysis & Lead (Pb) Monitoring")
 
-with col_btn:
-    st.write("") 
-    if st.button("🔄 Refresh Data", type="primary", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
+# ═══════════════════════════════════════════════
+#  PAGE SETUP & CUSTOM STYLING
+# ═══════════════════════════════════════════════
+st.set_page_config(
+    page_title="GroundSense — Urban Soil Health",
+    page_icon="🌱",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-st.markdown("---")
+# ── Professional CSS theme ──
+st.markdown("""
+<style>
+    /* ── Global ── */
+    .block-container {
+        padding-top: 1.5rem;
+        padding-bottom: 2rem;
+    }
 
-# --- 1. NYSH COLOR MAPPING FUNCTION ---
-def get_nysh_category(ppm):
-    # Action levels based on NYSH guidance 
-    if pd.isna(ppm): return 'Unknown'
-    if ppm < 63: return 'Safe (< 63 ppm)' 
-    elif ppm < 100: return 'Elevated (63-99 ppm)' 
-    elif ppm < 200: return 'Contaminated (100-199 ppm)' 
-    elif ppm < 400: return 'High (200-399 ppm)' 
-    else: return 'Hazard (400+ ppm)' 
+    /* ── Header banner ── */
+    .gs-header {
+        background: linear-gradient(135deg, #1a472a 0%, #2d6a4f 50%, #40916c 100%);
+        padding: 1.8rem 2rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        color: white;
+    }
+    .gs-header h1 {
+        margin: 0;
+        font-size: 1.9rem;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+    .gs-header p {
+        margin: 0.3rem 0 0 0;
+        font-size: 0.95rem;
+        opacity: 0.85;
+    }
 
-nysh_colors = {
-    'Safe (< 63 ppm)': '#2ecc71',
-    'Elevated (63-99 ppm)': '#f1c40f',
-    'Contaminated (100-199 ppm)': '#e67e22',
-    'High (200-399 ppm)': '#e74c3c',
-    'Hazard (400+ ppm)': '#800000', # Dark Red/Maroon
-    'Unknown': '#808080'
-}
+    /* ── Metric cards ── */
+    div[data-testid="stMetric"] {
+        background: var(--background-color);
+        border: 1px solid rgba(128, 128, 128, 0.15);
+        border-radius: 10px;
+        padding: 0.9rem 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    div[data-testid="stMetric"] label {
+        font-size: 0.78rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.65;
+    }
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+        font-size: 1.6rem !important;
+        font-weight: 600;
+    }
 
-# --- 2. GPS OFFSET CALCULATOR ---
-def calculate_coordinate(start_lat, start_lon, offset_north_ft, offset_east_ft):
-    """Calculates a GPS coordinate based on an offset in feet. Handles negatives (South/West) automatically."""
-    R_EARTH_FT = 20925721.78 
-    delta_lat = (offset_north_ft / R_EARTH_FT) * (180 / math.pi)
-    lat_radians = start_lat * (math.pi / 180)
-    delta_lon = (offset_east_ft / (R_EARTH_FT * math.cos(lat_radians))) * (180 / math.pi)
-    return start_lat + delta_lat, start_lon + delta_lon
+    /* ── Section dividers ── */
+    .gs-section {
+        margin-top: 2rem;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 2px solid rgba(45, 106, 79, 0.2);
+    }
+    .gs-section h3 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: #2d6a4f;
+    }
 
-# --- DATA LOADING FUNCTIONS ---
+    /* ── Map container ── */
+    .gs-map-container {
+        border: 1px solid rgba(128, 128, 128, 0.12);
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    /* ── Stats badges ── */
+    .gs-badge {
+        display: inline-block;
+        padding: 0.2rem 0.65rem;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+
+    /* ── Footer ── */
+    .gs-footer {
+        margin-top: 3rem;
+        padding: 1.2rem 0;
+        border-top: 1px solid rgba(128,128,128,0.15);
+        text-align: center;
+        font-size: 0.78rem;
+        opacity: 0.5;
+    }
+
+    /* ── Hide default Streamlit branding ── */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+
+    /* ── Sidebar styling ── */
+    section[data-testid="stSidebar"] > div {
+        padding-top: 1.5rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+# ── Header ──
+st.markdown("""
+<div class="gs-header">
+    <h1>🌱 GroundSense</h1>
+    <p>Urban Soil Health Dashboard — XRF Lead (Pb) Analysis & Monitoring</p>
+</div>
+""", unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════
+#  DATA LOADING (with robust error handling)
+# ═══════════════════════════════════════════════
 @st.cache_data
 def load_chemistry_data():
+    """Load raw XRF chemistry CSVs for aggregate analytics."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(base_dir, '..', 'Data', 'xrf_data')
-    search_path = os.path.join(data_dir, 'chemistry*.csv')
-    files = glob.glob(search_path)
-    
+    data_dir = os.path.join(base_dir, '..', 'data', 'xrf_data')
+    files = glob.glob(os.path.join(data_dir, 'chemistry*.csv'))
     if not files:
         return pd.DataFrame()
-    
+
     all_data = []
     for f in files:
-        df = pd.read_csv(f)
-        df['DateTime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'])
-        all_data.append(df)
-        
+        try:
+            df = pd.read_csv(f)
+            if 'Date' not in df.columns or 'Time' not in df.columns:
+                continue
+            df['DateTime'] = pd.to_datetime(
+                df['Date'].astype(str) + ' ' + df['Time'].astype(str),
+                errors='coerce'
+            )
+            all_data.append(df)
+        except Exception:
+            continue
+
+    if not all_data:
+        return pd.DataFrame()
+
     final_df = pd.concat(all_data, ignore_index=True)
-    
+    final_df = final_df.dropna(subset=['DateTime'])
+
+    # Extract key elements
     elements = {'Pb': 'Lead', 'Zn': 'Zinc', 'As': 'Arsenic', 'Fe': 'Iron'}
     for sym, name in elements.items():
-        col_name = f"{sym} Concentration"
-        if col_name in final_df.columns:
-            final_df[name] = pd.to_numeric(final_df[col_name], errors='coerce')
-            
+        col = f"{sym} Concentration"
+        if col in final_df.columns:
+            final_df[name] = pd.to_numeric(final_df[col], errors='coerce')
+
     return final_df
+
 
 @st.cache_data
 def load_master_data():
+    """Load the latest processed Master Data with SampleID→Address mapping."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    master_dir = os.path.join(base_dir, '..', 'Data', 'master_data')
+    master_dir = os.path.join(base_dir, '..', 'data', 'master_data')
     master_files = glob.glob(os.path.join(master_dir, 'Master_Data_v*.csv'))
-    
     if not master_files:
         return pd.DataFrame()
-        
-    def get_version(filename):
-        match = re.search(r'_v(\d+)\.csv', filename)
-        return int(match.group(1)) if match else 0
-        
-    latest_file = max(master_files, key=get_version)
-    df = pd.read_csv(latest_file)
-    
-    site_db_path = os.path.join(base_dir, '..', 'Data', 'site_databases', 'XRF Site Analysis Database W SampleID(Sheet1).csv')
+
+    def get_version(fn):
+        m = re.search(r'_v(\d+)\.csv', fn)
+        return int(m.group(1)) if m else 0
+
+    latest = max(master_files, key=get_version)
+    df = pd.read_csv(latest)
+
+    # Apply LOD handling
+    df['LeadPPM_Clean'] = df['LeadPPM'].apply(resolve_lod)
+
+    # Map addresses from Site DB
+    site_db_path = os.path.join(
+        base_dir, '..', 'data', 'site_databases',
+        'XRF Site Analysis Database W SampleID(Sheet1).csv'
+    )
     if os.path.exists(site_db_path):
-        site_db = pd.read_csv(site_db_path, header=1, encoding='latin1')
-        site_db['Address'] = site_db['Address'].ffill()
-        site_mapping = dict(zip(site_db['SampleID'].dropna(), site_db['Address'].dropna()))
-        df['Site_Address'] = df['SampleID'].map(site_mapping).fillna("Unknown Address")
+        try:
+            site_db = pd.read_csv(site_db_path, header=1, encoding='latin1')
+            site_db['Address'] = site_db['Address'].ffill()
+            mapping = dict(zip(
+                site_db['SampleID'].dropna(),
+                site_db['Address'].dropna()
+            ))
+            df['Site_Address'] = df['SampleID'].map(mapping).fillna("Unknown Address")
+        except Exception:
+            df['Site_Address'] = "Unknown Address"
     else:
         df['Site_Address'] = "Unknown Address"
-        
+
     return df
 
-# --- LOAD DATA ---
+
+@st.cache_data
+def load_site_configs():
+    """Load site grid configurations for map rendering."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(
+        base_dir, '..', 'data', 'site_configs', 'site_configs.json'
+    )
+    if not os.path.exists(config_path):
+        return {}
+    try:
+        with open(config_path, 'r') as f:
+            raw = json.load(f)
+        return {site["address"]: site for site in raw}
+    except Exception:
+        return {}
+
+
+# ═══════════════════════════════════════════════
+#  MAP GENERATION ENGINE
+# ═══════════════════════════════════════════════
+
+def match_sample_to_master(patterns, master_df):
+    """Pattern-match SampleID substrings and return average Lead PPM."""
+    for pattern in patterns:
+        matches = master_df[
+            master_df['SampleID'].str.contains(pattern, case=False, na=False)
+        ]
+        if not matches.empty:
+            avg = matches['LeadPPM_Clean'].mean()
+            if pd.notna(avg):
+                return avg
+    return None
+
+
+def generate_site_map(site_config, master_df):
+    """
+    Generate a Folium satellite map for a site using its config.
+    Grid blocks → Rectangles, point samples → CircleMarkers.
+    Returns: (folium.Map, stats_dict)
+    """
+    anchor = site_config["anchor"]
+    defaults = site_config.get("map_defaults", {})
+
+    center_lat, center_lon = calculate_coordinate(
+        anchor["lat"], anchor["lon"],
+        defaults.get("center_offset_north_ft", 10),
+        defaults.get("center_offset_east_ft", 0)
+    )
+
+    m = folium.Map(
+        location=[center_lat, center_lon],
+        zoom_start=defaults.get("zoom_start", 20),
+        max_zoom=25, tiles=None
+    )
+
+    # Esri Satellite with deep zoom
+    folium.TileLayer(
+        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/'
+              'World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attr='Esri', name='Esri Satellite',
+        max_zoom=25, max_native_zoom=19,
+        overlay=False, control=True
+    ).add_to(m)
+
+    # Anchor marker
+    folium.Marker(
+        location=[anchor["lat"], anchor["lon"]],
+        tooltip="<b>{}</b>".format(
+            anchor.get('marker_label', 'Anchor Point')
+        ),
+        icon=folium.Icon(color='red', icon='home')
+    ).add_to(m)
+
+    # Filter master data to this site
+    site_df = master_df[
+        master_df['Site_Address'] == site_config['address']
+    ].copy()
+    if site_df.empty:
+        site_df = master_df.copy()
+
+    stats = {
+        "total_blocks": 0, "real_data": 0, "mock_data": 0,
+        "blocks": [], "max_ppm": 0, "min_ppm": float('inf')
+    }
+
+    # ── GRID BLOCKS ──
+    grid = site_config.get("grid_blocks", {})
+    for block_id, dims in grid.items():
+        if block_id.startswith("_"):
+            continue
+
+        stats["total_blocks"] += 1
+
+        sw_lat, sw_lon = calculate_coordinate(
+            anchor["lat"], anchor["lon"], dims["sw_y"], dims["sw_x"]
+        )
+        ne_lat, ne_lon = calculate_coordinate(
+            anchor["lat"], anchor["lon"], dims["ne_y"], dims["ne_x"]
+        )
+
+        patterns = dims.get("sample_id_patterns", [])
+        real_ppm = match_sample_to_master(patterns, site_df)
+
+        if real_ppm is not None:
+            ppm = real_ppm
+            data_source = "XRF Data"
+            stats["real_data"] += 1
+        else:
+            ppm = dims.get("mock_ppm", 0)
+            data_source = "Estimated"
+            stats["mock_data"] += 1
+
+        stats["max_ppm"] = max(stats["max_ppm"], ppm)
+        stats["min_ppm"] = min(stats["min_ppm"], ppm)
+
+        label, color_hex = get_nysh_category(ppm)
+        width_ft = abs(dims["ne_x"] - dims["sw_x"])
+        height_ft = abs(dims["ne_y"] - dims["sw_y"])
+
+        tooltip_html = """
+        <div style='font-family: -apple-system, sans-serif; font-size: 13px;
+                    line-height: 1.6; min-width: 160px;'>
+            <b style='font-size: 15px;'>{block_id}</b><br>
+            <span style='font-size: 1.4em; color: {color};'>●</span>
+            <b>{ppm:.0f} ppm</b> — {label}<br>
+            <span style='opacity: 0.7;'>{w:.0f} × {h:.0f} ft · {src}</span>
+        </div>
+        """.format(
+            block_id=block_id, color=color_hex, ppm=ppm,
+            label=label, w=width_ft, h=height_ft, src=data_source
+        )
+
+        folium.Rectangle(
+            bounds=[[sw_lat, sw_lon], [ne_lat, ne_lon]],
+            color='white', weight=2,
+            fill=True, fill_color=color_hex, fill_opacity=0.75,
+            tooltip=tooltip_html
+        ).add_to(m)
+
+        stats["blocks"].append({
+            "id": block_id, "ppm": ppm, "label": label,
+            "source": data_source, "zone": dims.get("zone", "")
+        })
+
+    # ── POINT SAMPLES ──
+    points = site_config.get("point_samples", {})
+    for pt_id, pt in points.items():
+        if pt_id.startswith("_"):
+            continue
+
+        ox = pt.get("offset_x")
+        oy = pt.get("offset_y")
+        if ox is None or oy is None:
+            continue
+
+        pt_lat, pt_lon = calculate_coordinate(
+            anchor["lat"], anchor["lon"], oy, ox
+        )
+
+        patterns = pt.get("sample_id_patterns", [])
+        real_ppm = match_sample_to_master(patterns, site_df)
+
+        if real_ppm is not None:
+            ppm = real_ppm
+            data_source = "XRF Data"
+            stats["real_data"] += 1
+            label, color_hex = get_nysh_category(ppm)
+            ppm_str = "{:.0f} ppm".format(ppm)
+        else:
+            ppm = None
+            data_source = "No Data"
+            label, color_hex = "Unknown", "#808080"
+            ppm_str = "Pending"
+
+        stats["total_blocks"] += 1
+        stats["blocks"].append({
+            "id": pt_id, "ppm": ppm or 0, "label": label,
+            "source": data_source, "zone": pt.get("zone", "")
+        })
+
+        tooltip_html = """
+        <div style='font-family: -apple-system, sans-serif; font-size: 13px;
+                    line-height: 1.6; min-width: 140px;'>
+            <b style='font-size: 15px;'>{pt_id}</b><br>
+            <span style='font-size: 1.4em; color: {color};'>●</span>
+            <b>{ppm_str}</b> — {label}<br>
+            <span style='opacity: 0.7;'>Point sample · {src}</span>
+        </div>
+        """.format(
+            pt_id=pt_id, color=color_hex, ppm_str=ppm_str,
+            label=label, src=data_source
+        )
+
+        folium.CircleMarker(
+            location=[pt_lat, pt_lon],
+            radius=8, color='white', weight=2,
+            fill=True, fill_color=color_hex, fill_opacity=0.85,
+            tooltip=tooltip_html
+        ).add_to(m)
+
+    # ── LEGEND ──
+    legend_html = """
+    <div style="position: fixed; bottom: 30px; left: 30px; z-index: 1000;
+                background: rgba(20,24,32,0.92); padding: 16px 20px;
+                border-radius: 12px; font-family: -apple-system, sans-serif;
+                font-size: 12px; color: #e8eaed;
+                box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+                border: 1px solid rgba(255,255,255,0.08);
+                backdrop-filter: blur(8px);">
+        <b style="font-size: 13px; letter-spacing: 0.3px;">
+            NYSH Lead Guidelines
+        </b><br>
+        <div style="margin-top: 6px;">
+    """
+    for tier in NYSH_TIERS:
+        legend_html += """
+        <div style="margin: 3px 0;">
+            <span style="display: inline-block; width: 12px; height: 12px;
+                          background: {}; border-radius: 3px;
+                          margin-right: 8px; vertical-align: middle;"></span>
+            {}
+        </div>
+        """.format(tier['color'], tier['label'])
+    legend_html += """
+        <div style="margin: 3px 0;">
+            <span style="display: inline-block; width: 12px; height: 12px;
+                          background: #808080; border-radius: 3px;
+                          margin-right: 8px; vertical-align: middle;"></span>
+            No Data
+        </div>
+        </div>
+        <hr style="border-color: rgba(255,255,255,0.1); margin: 8px 0 6px;">
+        <span style="font-size: 11px; opacity: 0.7;">
+            ■ Grid block &nbsp; ● Point sample
+        </span>
+    </div>
+    """
+    m.get_root().html.add_child(folium.Element(legend_html))
+
+    return m, stats
+
+
+# ═══════════════════════════════════════════════
+#  LOAD ALL DATA
+# ═══════════════════════════════════════════════
 chem_df = load_chemistry_data()
 master_df = load_master_data()
+site_configs = load_site_configs()
 
 if chem_df.empty:
-    st.error("No data found! Please ensure your chemistry files are inside the 'Data/xrf_data' folder.")
+    st.error(
+        "**No XRF data found.** Please ensure chemistry CSV files "
+        "are in the `data/xrf_data/` directory."
+    )
     st.stop()
 
-# --- SIDEBAR FILTERS ---
-st.sidebar.header("Filter Options")
-date_range = st.sidebar.date_input("Select Date Range", [chem_df['DateTime'].min(), chem_df['DateTime'].max()])
-epa_limit = st.sidebar.number_input("EPA Safety Limit (ppm)", value=400, step=50)
 
-mask = (chem_df['DateTime'].dt.date >= date_range[0]) & (chem_df['DateTime'].dt.date <= date_range[1])
+# ═══════════════════════════════════════════════
+#  SIDEBAR
+# ═══════════════════════════════════════════════
+with st.sidebar:
+    st.markdown("### ⚙️ Filters")
+    st.caption("Adjust parameters for the analytics below.")
+
+    # Safe date range handling (fixes crash if user picks single date)
+    min_date = chem_df['DateTime'].min().date()
+    max_date = chem_df['DateTime'].max().date()
+
+    date_range = st.date_input(
+        "Date Range",
+        value=[min_date, max_date],
+        min_value=min_date,
+        max_value=max_date,
+    )
+
+    # Handle single-date selection gracefully
+    if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
+        start_date, end_date = date_range
+    else:
+        start_date = date_range[0] if isinstance(date_range, (list, tuple)) else date_range
+        end_date = max_date
+
+    nysh_limit = st.number_input(
+        "NYSH Hazard Threshold (ppm)",
+        value=400, step=50,
+        help="Readings above this level are classified as 'Hazard' "
+             "per New York Soil Health guidelines."
+    )
+
+    st.markdown("---")
+    st.markdown("### 📋 About")
+    st.caption(
+        "**GroundSense** is a project by the Urban Soil Co-Lab at the "
+        "University at Buffalo. We use portable XRF technology to map "
+        "lead contamination in residential soils across Buffalo, NY."
+    )
+
+    if st.button("🔄 Refresh Data", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+
+
+# ── Apply date filter ──
+mask = (
+    (chem_df['DateTime'].dt.date >= start_date) &
+    (chem_df['DateTime'].dt.date <= end_date)
+)
 filtered_chem_df = chem_df.loc[mask]
 
-# --- KEY METRICS ROW ---
-col1, col2, col3, col4 = st.columns(4)
-avg_lead = filtered_chem_df['Lead'].mean()
-max_lead = filtered_chem_df['Lead'].max()
-high_risk_count = filtered_chem_df[filtered_chem_df['Lead'] > epa_limit].shape[0]
-percent_safe = 100 - (high_risk_count / len(filtered_chem_df) * 100) if len(filtered_chem_df) > 0 else 100
+if filtered_chem_df.empty:
+    st.warning("No readings in the selected date range.")
+    st.stop()
 
-col1.metric("Avg Lead Level", f"{avg_lead:.1f} ppm", delta_color="inverse")
-col2.metric("Max Detected", f"{max_lead:.0f} ppm", delta="-High" if max_lead > epa_limit else "normal")
-col3.metric("Total Readings", f"{len(filtered_chem_df)}")
-col4.metric("Safety Rate", f"{percent_safe:.1f}%")
 
-st.markdown("---")
+# ═══════════════════════════════════════════════
+#  KEY METRICS ROW
+# ═══════════════════════════════════════════════
+if 'Lead' in filtered_chem_df.columns:
+    lead_data = filtered_chem_df['Lead'].dropna()
+    avg_lead = lead_data.mean()
+    max_lead = lead_data.max()
+    total_readings = len(lead_data)
+    high_risk = (lead_data > nysh_limit).sum()
+    pct_below = ((lead_data <= nysh_limit).sum() / total_readings * 100) if total_readings > 0 else 100
 
-# --- VISUALIZATIONS ---
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Avg Lead (Pb)", "{:.0f} ppm".format(avg_lead))
+    col2.metric("Peak Detected", "{:.0f} ppm".format(max_lead))
+    col3.metric("Total Readings", "{:,}".format(total_readings))
+    col4.metric(
+        "Below NYSH Hazard",
+        "{:.1f}%".format(pct_below),
+        help="Percentage of readings below {} ppm (NYSH Hazard threshold)".format(nysh_limit)
+    )
+else:
+    st.warning("Lead concentration data not found in chemistry files.")
 
-# ROW 1: REAL GEOSPATIAL YARD GRID HEATMAP
-st.subheader("🗺️ High-Resolution Geospatial Site Map (NYSH Guidelines)")
-st.markdown("Select a site address to view the exact grid layouts overlaid on satellite imagery.")
 
-if not master_df.empty and 'Site_Address' in master_df.columns:
-    site_list = sorted(master_df['Site_Address'].unique().tolist())
-    selected_site = st.selectbox("Select Site to Map:", site_list)
+# ═══════════════════════════════════════════════
+#  GEOSPATIAL MAPS
+# ═══════════════════════════════════════════════
+st.markdown(
+    '<div class="gs-section"><h3>🗺️ Site Maps — Lead Contamination by Grid Block</h3></div>',
+    unsafe_allow_html=True
+)
 
-    if selected_site == "252 E Utica St" or "Utica" in selected_site:
-        site_df = master_df[master_df['Site_Address'] == selected_site].copy()
-        site_df['Lead'] = pd.to_numeric(site_df['LeadPPM'], errors='coerce')
-        
-        # Corner of Porch at 252 E Utica St
-        ANCHOR_LAT = 42.9115083
-        ANCHOR_LON = -78.8563833
+if not master_df.empty and site_configs:
+    # Build site selector
+    configured_addresses = list(site_configs.keys())
+    master_addresses = sorted(master_df['Site_Address'].unique().tolist())
+    all_addresses = configured_addresses + [
+        a for a in master_addresses
+        if a not in configured_addresses and a != "Unknown Address"
+    ]
 
-        grid_layout = {
-            "1A_Utica": {"sw_x": -17, "sw_y": 20, "ne_x": -10, "ne_y": 30, "mock_ppm": 45},  
-            "1B_Utica": {"sw_x": -17, "sw_y": 10, "ne_x": -10, "ne_y": 20, "mock_ppm": 45},  
-            "1C_Utica": {"sw_x": -17, "sw_y": 0,  "ne_x": -10, "ne_y": 10, "mock_ppm": 150}, 
-            "2A_Utica": {"sw_x": -10, "sw_y": 20, "ne_x": 0,   "ne_y": 30, "mock_ppm": 85},  
-            "2B_Utica": {"sw_x": -10, "sw_y": 10, "ne_x": 0,   "ne_y": 20, "mock_ppm": 150}, 
-            "2C_Utica": {"sw_x": -10, "sw_y": 0,  "ne_x": 0,   "ne_y": 10, "mock_ppm": 250}, 
-            "3A_Utica": {"sw_x": 0,   "sw_y": 20, "ne_x": 10,  "ne_y": 30, "mock_ppm": 150}, 
-            "3B_Utica": {"sw_x": 0,   "sw_y": 10, "ne_x": 10,  "ne_y": 20, "mock_ppm": 250}, 
-            "3C_Utica": {"sw_x": 0,   "sw_y": 0,  "ne_x": 10,  "ne_y": 10, "mock_ppm": 450}, 
-            "3D_Utica": {"sw_x": 0,   "sw_y": -6, "ne_x": 10,  "ne_y": 0,  "mock_ppm": 450}, 
-        }
+    selected_site = st.selectbox(
+        "Select site",
+        all_addresses,
+        label_visibility="collapsed",
+        help="Choose a site to view its lead contamination map on satellite imagery."
+    )
 
-        # Initialize map
-        m = folium.Map(location=[ANCHOR_LAT + 0.00004, ANCHOR_LON - 0.00002], zoom_start=21, max_zoom=25, tiles=None)
+    if selected_site in site_configs:
+        config = site_configs[selected_site]
 
-        # High-Res Esri Satellite Layer (with zoom unlock)
-        folium.TileLayer(
-            tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-            attr='Esri',
-            name='Esri Satellite',
-            max_zoom=25,
-            max_native_zoom=19,
-            overlay=False,
-            control=True
-        ).add_to(m)
+        # ── Site info bar ──
+        info1, info2, info3 = st.columns(3)
+        info1.markdown(
+            "**📍 {}**, {}".format(
+                config['address'],
+                config.get('city', 'Buffalo')
+            )
+        )
+        info2.markdown(
+            "**📅 Sampled:** {}".format(
+                config.get('sampling_date', 'Unknown')
+            )
+        )
+        grid_count = len([
+            k for k in config.get('grid_blocks', {})
+            if not k.startswith('_')
+        ])
+        point_count = len([
+            k for k in config.get('point_samples', {})
+            if not k.startswith('_')
+        ])
+        info3.markdown(
+            "**📐 Zones:** {} grid blocks, {} point samples".format(
+                grid_count, point_count
+            )
+        )
 
-        # Draw the Anchor Point (Porch Corner)
-        folium.Marker(
-            location=[ANCHOR_LAT, ANCHOR_LON],
-            tooltip="<b>Porch Corner (Anchor Point at 3D/3C/2C)</b>",
-            icon=folium.Icon(color='red', icon='home')
-        ).add_to(m)
+        if config.get("notes"):
+            st.caption("📝 {}".format(config["notes"]))
 
-        # Draw all colored Rectangles
-        for sample_id, dims in grid_layout.items():
-            sw_lat, sw_lon = calculate_coordinate(ANCHOR_LAT, ANCHOR_LON, dims["sw_y"], dims["sw_x"])
-            ne_lat, ne_lon = calculate_coordinate(ANCHOR_LAT, ANCHOR_LON, dims["ne_y"], dims["ne_x"])
-            
-            # Use REAL dashboard data if available, otherwise use your mock_ppm
-            real_data_match = site_df[site_df['SampleID'] == sample_id]
-            if not real_data_match.empty and not pd.isna(real_data_match['Lead'].iloc[0]):
-                ppm = real_data_match['Lead'].iloc[0]
-            else:
-                ppm = dims["mock_ppm"]
-                
-            # --- THE BUG FIX ---
-            label = get_nysh_category(ppm)
-            color_hex = nysh_colors.get(label, '#808080')
-            
-            width = dims["ne_x"] - dims["sw_x"]
-            length = dims["ne_y"] - dims["sw_y"]
-            
-            tooltip_html = f"""
-            <div style='font-family: Arial; font-size: 14px;'>
-                <b>Sample:</b> {sample_id}<br>
-                <b>Size:</b> {width}x{length} ft<br>
-                <b>Lead Level:</b> {ppm:.1f} ppm<br>
-                <b>NYSH Status:</b> {label}
-            </div>
-            """
-            
-            folium.Rectangle(
-                bounds=[[sw_lat, sw_lon], [ne_lat, ne_lon]],
-                color='white',
-                weight=2,
-                fill=True,
-                fill_color=color_hex,
-                fill_opacity=0.75, 
-                tooltip=tooltip_html
-            ).add_to(m)
+        # ── Render map ──
+        with st.spinner("Rendering satellite map..."):
+            site_map, stats = generate_site_map(config, master_df)
 
-        st_folium(m, width=1000, height=600, returned_objects=[])
+        st.markdown('<div class="gs-map-container">', unsafe_allow_html=True)
+        st_folium(site_map, width=None, height=600, returned_objects=[])
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ── Stats row below map ──
+        st.markdown("")  # spacer
+        scol1, scol2, scol3, scol4 = st.columns(4)
+        scol1.metric("Zones Mapped", stats["total_blocks"])
+        scol2.metric(
+            "XRF Data",
+            stats["real_data"],
+            help="Zones with real lab-measured XRF readings"
+        )
+        scol3.metric(
+            "Estimated",
+            stats["mock_data"],
+            help="Zones using placeholder values — awaiting XRF analysis"
+        )
+        if stats["real_data"] > 0 and stats["max_ppm"] > 0:
+            scol4.metric(
+                "Range",
+                "{:.0f}–{:.0f} ppm".format(
+                    stats["min_ppm"], stats["max_ppm"]
+                )
+            )
+
+        # ── NYSH category breakdown ──
+        if stats["blocks"]:
+            block_df = pd.DataFrame(stats["blocks"])
+            cat_counts = block_df['label'].value_counts()
+
+            st.markdown("**NYSH Category Breakdown:**")
+            cat_cols = st.columns(len(NYSH_TIERS))
+            for i, tier in enumerate(NYSH_TIERS):
+                count = cat_counts.get(tier["label"], 0)
+                cat_cols[i].markdown(
+                    "<div style='text-align:center; padding: 0.5rem 0;'>"
+                    "<span style='color:{}; font-size: 1.8rem; "
+                    "font-weight: 700;'>{}</span><br>"
+                    "<span style='font-size: 0.7rem; opacity: 0.6;'>"
+                    "{}</span></div>".format(
+                        tier['color'], count,
+                        tier['label'].split('(')[0].strip()
+                    ),
+                    unsafe_allow_html=True
+                )
 
     else:
-        st.info(f"Custom spatial mapping is currently hardcoded and configured only for the Utica site. Please select '252 E Utica St'.")
+        st.info(
+            "**No grid configuration for '{}'.**  \n"
+            "Use the Site Builder tool to create a grid layout for this "
+            "address, then it will appear here automatically.".format(
+                selected_site
+            )
+        )
+
+elif not site_configs:
+    st.warning(
+        "**Site configuration file not found.**  \n"
+        "Place `site_configs.json` in `data/site_configs/` to enable "
+        "satellite mapping."
+    )
 else:
-    st.info("Please process data through the ETL Pipeline to generate Site Heatmaps.")
+    st.info(
+        "**No processed data available.**  \n"
+        "Run the ETL Pipeline to generate Master Data and enable maps."
+    )
 
-st.markdown("---")
 
-# ROW 2: Distribution 
-st.subheader("📊 Lead Distribution Histogram")
-fig_hist = px.histogram(filtered_chem_df, x="Lead", nbins=20, title="Frequency of Lead Concentrations",
-                        color_discrete_sequence=['#2E8B57'])
-fig_hist.add_vline(x=epa_limit, line_dash="dash", line_color="red", annotation_text="EPA Limit")
-st.plotly_chart(fig_hist, use_container_width=True)
+# ═══════════════════════════════════════════════
+#  LEAD DISTRIBUTION
+# ═══════════════════════════════════════════════
+st.markdown(
+    '<div class="gs-section"><h3>📊 Lead Distribution</h3></div>',
+    unsafe_allow_html=True
+)
 
-st.markdown("---")
+if 'Lead' in filtered_chem_df.columns:
+    fig_hist = go.Figure()
 
-# ROW 3: Advanced Correlations 
-st.subheader("🔬 Multi-Element Soil Fingerprint")
+    fig_hist.add_trace(go.Histogram(
+        x=filtered_chem_df['Lead'].dropna(),
+        nbinsx=25,
+        marker_color='#2d6a4f',
+        marker_line_color='#1a472a',
+        marker_line_width=0.5,
+        opacity=0.85,
+        hovertemplate="<b>%{x:.0f} ppm</b><br>Count: %{y}<extra></extra>",
+    ))
+
+    # NYSH threshold lines
+    thresholds = [
+        (63, "NYSH Elevated", "#f1c40f"),
+        (100, "NYSH Contaminated", "#e67e22"),
+        (200, "NYSH High", "#e74c3c"),
+        (400, "NYSH Hazard", "#800000"),
+    ]
+    for val, name, color in thresholds:
+        fig_hist.add_vline(
+            x=val, line_dash="dot", line_color=color, line_width=1.5,
+            annotation_text=name, annotation_font_size=10,
+            annotation_font_color=color,
+        )
+
+    fig_hist.update_layout(
+        title=None,
+        xaxis_title="Lead Concentration (ppm)",
+        yaxis_title="Number of Readings",
+        template="plotly_white",
+        height=380,
+        margin=dict(t=30, b=60, l=60, r=30),
+        bargap=0.05,
+        font=dict(family="-apple-system, BlinkMacSystemFont, sans-serif"),
+    )
+
+    st.plotly_chart(fig_hist, use_container_width=True)
+
+
+# ═══════════════════════════════════════════════
+#  MULTI-ELEMENT CORRELATION
+# ═══════════════════════════════════════════════
+st.markdown(
+    '<div class="gs-section">'
+    '<h3>🔬 Multi-Element Soil Fingerprint</h3>'
+    '</div>',
+    unsafe_allow_html=True
+)
+
 if 'Zinc' in filtered_chem_df.columns and 'Arsenic' in filtered_chem_df.columns:
     plot_df = filtered_chem_df.copy()
-    plot_df['Arsenic'] = plot_df['Arsenic'].fillna(1) 
+    plot_df['Arsenic'] = plot_df['Arsenic'].fillna(1)
     if 'Iron' in plot_df.columns:
         plot_df['Iron'] = plot_df['Iron'].fillna(0)
 
-    fig_corr = px.scatter(plot_df, x="Zinc", y="Lead", 
-                          size="Arsenic", color="Iron",
-                          hover_data=['DateTime', 'Lead', 'Zinc', 'Arsenic'],
-                          title="Lead vs. Zinc Correlation (Sized by Arsenic, Colored by Iron)",
-                          color_continuous_scale="Viridis")
+    fig_corr = px.scatter(
+        plot_df, x="Zinc", y="Lead",
+        size="Arsenic", color="Iron",
+        hover_data=['DateTime', 'Lead', 'Zinc', 'Arsenic'],
+        color_continuous_scale="Viridis",
+    )
+
+    fig_corr.update_layout(
+        title=None,
+        xaxis_title="Zinc (ppm)",
+        yaxis_title="Lead (ppm)",
+        template="plotly_white",
+        height=420,
+        margin=dict(t=30, b=60, l=60, r=30),
+        font=dict(family="-apple-system, BlinkMacSystemFont, sans-serif"),
+        coloraxis_colorbar_title="Iron (ppm)",
+    )
+
     st.plotly_chart(fig_corr, use_container_width=True)
+
+    st.caption(
+        "Each point represents one XRF reading. Point size indicates "
+        "arsenic concentration. Color intensity shows iron levels. "
+        "Strong Lead-Zinc correlation suggests shared contamination source "
+        "(e.g. leaded paint or industrial fallout)."
+    )
 else:
-    st.info("Zinc or Arsenic data missing from current dataset.")
+    st.info(
+        "Zinc and/or Arsenic data not available in the current dataset "
+        "for correlation analysis."
+    )
+
+
+# ═══════════════════════════════════════════════
+#  FOOTER
+# ═══════════════════════════════════════════════
+st.markdown(
+    '<div class="gs-footer">'
+    'GroundSense · Urban Soil Co-Lab · University at Buffalo<br>'
+    'Data sourced from portable XRF analysis (Instrument #824222)'
+    '</div>',
+    unsafe_allow_html=True
+)

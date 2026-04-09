@@ -1,746 +1,2209 @@
-# # # # import streamlit as st
-# # # # import os
-# # # # import glob
-# # # # import re
-# # # # import subprocess
+# # # # """
+# # # # etl_manager.py — GroundSense Data Pipeline Manager
 
-# # # # # --- PAGE CONFIGURATION ---
-# # # # st.set_page_config(page_title="GroundSense Data Pipeline", page_icon="⚙️", layout="centered")
-
-# # # # st.title("⚙️ Data Pipeline Manager")
-# # # # st.markdown("Drag and drop your raw XRF analysis files here. The backend will automatically process the data, map the Sample IDs, and generate the newest version of the Master Data.")
-# # # # st.markdown("---")
-
-# # # # # --- 1. FILE UPLOADER ---
-# # # # uploaded_files = st.file_uploader("Upload New XRF analysis CSVs", type=['csv'], accept_multiple_files=True)
-
-# # # # if st.button("🚀 Process Data & Update Master", type="primary"):
-# # # #     if uploaded_files:
-# # # #         # Step A: Save the uploaded files to the correct folder
-# # # #         xrf_dir = os.path.join("data", "xrf_data")
-# # # #         os.makedirs(xrf_dir, exist_ok=True)
-        
-# # # #         for f in uploaded_files:
-# # # #             file_path = os.path.join(xrf_dir, f.name)
-# # # #             with open(file_path, "wb") as f_out:
-# # # #                 f_out.write(f.read())
-                
-# # # #         st.success(f"✅ Successfully saved {len(uploaded_files)} file(s) to `data/xrf_data/`")
-        
-# # # #         # Step B: Run the backend Python script automatically
-# # # #         with st.spinner("Running background ETL pipeline..."):
-# # # #             # This runs your src/data.py exactly as if you typed it in the terminal
-# # # #             result = subprocess.run(["python", "src/data.py"], capture_output=True, text=True)
-            
-# # # #         # Show the terminal logs directly on the web page so you can see what happened!
-# # # #         with st.expander("🔍 View Pipeline Logs", expanded=True):
-# # # #             st.code(result.stdout)
-            
-# # # #         if result.returncode == 0:
-# # # #             st.success("🎉 Pipeline executed successfully!")
-# # # #         else:
-# # # #             st.error("⚠️ Pipeline encountered an error. Check the logs above.")
-# # # #             st.stop()
-            
-# # # #         # Step C: Find the newly created Master file for download
-# # # #         master_dir = os.path.join("data", "master_data")
-# # # #         master_files = glob.glob(os.path.join(master_dir, 'Master_Data_v*.csv'))
-        
-# # # #         if master_files:
-# # # #             def get_version(filename):
-# # # #                 match = re.search(r'_v(\d+)\.csv', filename)
-# # # #                 return int(match.group(1)) if match else 0
-                
-# # # #             latest_file = max(master_files, key=get_version)
-            
-# # # #             st.markdown("### 📥 Download Ready")
-# # # #             with open(latest_file, "rb") as file:
-# # # #                 st.download_button(
-# # # #                     label=f"Download Latest Master Data ({os.path.basename(latest_file)})",
-# # # #                     data=file,
-# # # #                     file_name=os.path.basename(latest_file),
-# # # #                     mime="text/csv"
-# # # #                 )
-# # # #     else:
-# # # #         st.warning("Please upload at least one chemistry file first.")
+# # # # Updates from original:
+# # # #   1. Imports NYSH colors from groundsense_config.py
+# # # #   2. Generates static map images (matplotlib) for each site using site_configs.json
+# # # #   3. Inserts map images into Slide 5 of the Resident Report PPTX template
+# # # #   4. Builds NYSH-colored results table on Slide 4
+# # # # """
 
 
 # # # import streamlit as st
 # # # import os
+# # # import sys
 # # # import glob
 # # # import re
 # # # import subprocess
 # # # import shutil
+# # # import json
+# # # import math
 # # # import pandas as pd
+# # # import numpy as np
+# # # import matplotlib
+# # # matplotlib.use('Agg')
+# # # import matplotlib.pyplot as plt
+# # # import matplotlib.patches as mpatches
+# # # from matplotlib.patches import FancyBboxPatch
 # # # from pptx import Presentation
+# # # from pptx.util import Inches
 
-# # # # --- PAGE CONFIGURATION ---
-# # # st.set_page_config(page_title="GroundSense Data Pipeline", page_icon="⚙️", layout="centered")
+# # # # Inject src to path so groundsense_config can be imported
+# # # sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 
-# # # st.title("⚙️ Data Pipeline Manager")
-# # # st.markdown("Drag and drop your raw XRF analysis files here. The backend will automatically process the data, map the Sample IDs, and generate the newest version of the Master Data and Resident Reports.")
-# # # st.markdown("---")
+# # # from groundsense_config import (
+# # #     get_nysh_category,
+# # #     NYSH_TIERS,
+# # #     NYSH_COLORS,
+# # #     calculate_coordinate,
+# # #     resolve_lod,
+# # # )
 
-# # # # --- REPORT GENERATION FUNCTION ---
-# # # def generate_pptx_reports(master_csv_path, template_path, output_dir):
+# # # # ═══════════════════════════════════════════════
+# # # #  PAGE CONFIGURATION
+# # # # ═══════════════════════════════════════════════
+# # # st.set_page_config(page_title="GroundSense Pipeline", page_icon="⚙️", layout="wide")
+
+# # # # Initialize Session State
+# # # if 'pipeline_success' not in st.session_state:
+# # #     st.session_state.pipeline_success = False
+# # # if 'latest_master_file' not in st.session_state:
+# # #     st.session_state.latest_master_file = None
+# # # if 'reports_generated' not in st.session_state:
+# # #     st.session_state.reports_generated = 0
+
+# # # # ═══════════════════════════════════════════════
+# # # #  MAP IMAGE GENERATOR (matplotlib)
+# # # # ═══════════════════════════════════════════════
+# # # def generate_map_image(site_config, master_df, output_path, style="dark"):
+# # #     """Generates a static PNG map image of a site's grid with NYSH coloring."""
+# # #     anchor = site_config["anchor"]
+# # #     grid = site_config.get("grid_blocks", {})
+# # #     points = site_config.get("point_samples", {})
+
+# # #     if 'LeadPPM_Clean' not in master_df.columns:
+# # #         master_df['LeadPPM_Clean'] = master_df['LeadPPM'].apply(resolve_lod)
+
+# # #     def match_ppm(patterns):
+# # #         for pat in patterns:
+# # #             matches = master_df[master_df['SampleID'].str.contains(pat, case=False, na=False)]
+# # #             if not matches.empty:
+# # #                 avg = matches['LeadPPM_Clean'].mean()
+# # #                 if pd.notna(avg):
+# # #                     return avg
+# # #         return None
+
+# # #     if style == "light":
+# # #         bg, text_c, label_c, edge_c = '#ffffff', '#333333', '#555555', '#333333'
+# # #         tick_c, spine_c = '#888888', '#cccccc'
+# # #         leg_bg, leg_edge, leg_text = '#f0f0f0', '#cccccc', '#333333'
+# # #         pt_label_c, pt_val_c = '#555555', '#333333'
+# # #     else:
+# # #         bg, text_c, label_c, edge_c = '#1a1c24', 'white', '#888888', 'white'
+# # #         tick_c, spine_c = '#666666', '#333333'
+# # #         leg_bg, leg_edge, leg_text = '#2a2d38', '#444444', 'white'
+# # #         pt_label_c, pt_val_c = '#cccccc', 'white'
+
+# # #     fig, ax = plt.subplots(1, 1, figsize=(8, 7), facecolor=bg)
+# # #     ax.set_facecolor(bg)
+
+# # #     all_x, all_y = [], []
+
+# # #     for block_id, dims in grid.items():
+# # #         if block_id.startswith("_"): continue
+# # #         sx, sy = dims["sw_x"], dims["sw_y"]
+# # #         w = dims["ne_x"] - dims["sw_x"]
+# # #         h = dims["ne_y"] - dims["sw_y"]
+
+# # #         patterns = dims.get("sample_id_patterns", [])
+# # #         ppm = match_ppm(patterns)
+# # #         if ppm is None: ppm = dims.get("mock_ppm", 0)
+
+# # #         label, color = get_nysh_category(ppm)
+
+# # #         rect = FancyBboxPatch((sx, sy), w, h, boxstyle="round,pad=0.3",
+# # #                               facecolor=color, edgecolor=edge_c, linewidth=1.5, alpha=0.8)
+# # #         ax.add_patch(rect)
+
+# # #         cx, cy = sx + w / 2, sy + h / 2
+# # #         ax.text(cx, cy, block_id, ha='center', va='center', fontsize=8, fontweight='bold', color='white',
+# # #                 bbox=dict(boxstyle='round,pad=0.15', facecolor='black', alpha=0.4))
+# # #         ax.text(cx, cy - h * 0.25, "{:.0f}".format(ppm), ha='center', va='center', fontsize=7, color='white', alpha=0.9)
+
+# # #         all_x.extend([sx, sx + w])
+# # #         all_y.extend([sy, sy + h])
+
+# # #     for pt_id, pt in points.items():
+# # #         if pt_id.startswith("_"): continue
+# # #         ox, oy = pt.get("offset_x", 0), pt.get("offset_y", 0)
+# # #         patterns = pt.get("sample_id_patterns", [])
+# # #         ppm = match_ppm(patterns)
+
+# # #         if ppm is not None:
+# # #             label, color = get_nysh_category(ppm)
+# # #             ppm_str = "{:.0f}".format(ppm)
+# # #         else:
+# # #             color, ppm_str = "#808080", "?"
+
+# # #         ax.plot(ox, oy, 'o', markersize=10, color=color, markeredgecolor=edge_c, markeredgewidth=1.5)
+# # #         ax.text(ox, oy + 2.5, pt_id, ha='center', va='bottom', fontsize=6, color=pt_label_c, fontstyle='italic')
+# # #         ax.text(ox, oy - 2.5, ppm_str, ha='center', va='top', fontsize=6, color='white', fontweight='bold')
+# # #         all_x.append(ox); all_y.append(oy)
+
+# # #     ax.plot(0, 0, marker='^', markersize=12, color='red', markeredgecolor=edge_c, markeredgewidth=1.5, zorder=10)
+# # #     ax.text(0, -3, "Anchor", ha='center', va='top', fontsize=7, color='red', fontweight='bold')
+
+# # #     if all_x and all_y:
+# # #         pad = 10
+# # #         ax.set_xlim(min(all_x) - pad, max(all_x) + pad)
+# # #         ax.set_ylim(min(all_y) - pad, max(all_y) + pad)
+
+# # #     ax.set_aspect('equal')
+# # #     ax.set_xlabel('East (ft)', color='#888888', fontsize=9)
+# # #     ax.set_ylabel('North (ft)', color='#888888', fontsize=9)
+# # #     ax.tick_params(colors='#666666', labelsize=7)
+# # #     for spine in ax.spines.values(): spine.set_color('#333333')
+
+# # #     site_name = site_config.get("address", "Site")
+# # #     ax.set_title(site_name + " — Lead Contamination Map", color=text_c, fontsize=12, fontweight='bold', pad=12)
+
+# # #     legend_patches = [mpatches.Patch(color=t["color"], label=t["label"]) for t in NYSH_TIERS]
+# # #     legend_patches.append(mpatches.Patch(color="#808080", label="No Data"))
+# # #     ax.legend(handles=legend_patches, loc='lower right', fontsize=6, framealpha=0.8,
+# # #               facecolor='#2a2d38', edgecolor='#444444', labelcolor='white')
+
+# # #     plt.tight_layout()
+# # #     plt.savefig(output_path, dpi=200, bbox_inches='tight', facecolor=bg, edgecolor='none')
+# # #     plt.close()
+# # #     return output_path
+
+# # # # ═══════════════════════════════════════════════
+# # # #  REPORT GENERATION (PPTX)
+# # # # ═══════════════════════════════════════════════
+# # # def generate_pptx_reports(master_csv_path, template_path, output_dir, site_db_path, site_configs_path):
+# # #     """Generates PPTX reports. Returns the number of reports generated."""
 # # #     df = pd.read_csv(master_csv_path)
-# # #     # Filter out rows where SampleID is blank or missing
 # # #     df = df[df['SampleID'].notna() & (df['SampleID'] != "")]
-    
-# # #     # Get unique sites and their calculated average lead
-# # #     sites = df[['SampleID', 'LeadAvg']].drop_duplicates()
-    
+# # #     df['LeadPPM_Clean'] = df['LeadPPM'].apply(resolve_lod)
+
+# # #     if os.path.exists(site_db_path):
+# # #         site_db = pd.read_csv(site_db_path, header=1, encoding='latin1')
+# # #         site_db['Address'] = site_db['Address'].ffill()
+# # #         site_mapping = dict(zip(site_db['SampleID'].dropna(), site_db['Address'].dropna()))
+# # #         df['SiteID'] = df['SampleID'].map(site_mapping).fillna(df['SampleID'])
+# # #     else:
+# # #         df['SiteID'] = df['SampleID']
+
+# # #     site_configs = {}
+# # #     if os.path.exists(site_configs_path):
+# # #         with open(site_configs_path, 'r') as f:
+# # #             raw = json.load(f)
+# # #         site_configs = {s["address"]: s for s in raw}
+
+# # #     site_averages = df.groupby('SiteID')['LeadPPM_Clean'].mean().reset_index()
+
 # # #     os.makedirs(output_dir, exist_ok=True)
-    
-# # #     for _, row in sites.iterrows():
-# # #         sample_id = str(row['SampleID'])
-# # #         lead_avg = str(row['LeadAvg'])
-        
-# # #         # Load the presentation template
-# # #         prs = Presentation(template_path)
-        
-# # #         # Loop through slides, shapes, and text to find placeholders
-# # #         for slide in prs.slides:
+# # #     maps_dir = os.path.join(output_dir, "map_images")
+# # #     os.makedirs(maps_dir, exist_ok=True)
+
+# # #     report_count = 0
+
+# # #     for _, row in site_averages.iterrows():
+# # #         site_id = str(row['SiteID'])
+# # #         site_avg = row['LeadPPM_Clean']
+# # #         if pd.isna(site_avg): continue
+
+# # #         map_image_path = None
+# # #         if site_id in site_configs:
+# # #             safe_name = "".join(c for c in site_id if c.isalnum() or c == ' ').rstrip()
+# # #             map_image_path = os.path.join(maps_dir, f"map_{safe_name}.png")
+# # #             try:
+# # #                 generate_map_image(site_configs[site_id], df, map_image_path)
+# # #             except Exception as e:
+# # #                 st.warning(f"Could not generate map for {site_id}: {e}")
+# # #                 map_image_path = None
+
+# # #         try:
+# # #             prs = Presentation(template_path)
+# # #         except Exception as e:
+# # #             raise Exception(f"Failed to load PPTX template: {e}")
+
+# # #         for slide_idx, slide in enumerate(prs.slides):
 # # #             for shape in slide.shapes:
-# # #                 if not shape.has_text_frame:
-# # #                     continue
+# # #                 if not shape.has_text_frame: continue
 # # #                 for paragraph in shape.text_frame.paragraphs:
 # # #                     for run in paragraph.runs:
-# # #                         # Replace specific text found in the template
 # # #                         if "Name of Resident" in run.text:
-# # #                             run.text = run.text.replace("Name of Resident", f"Resident ({sample_id})")
+# # #                             run.text = run.text.replace("Name of Resident", f"Resident at {site_id}")
 # # #                         if "Address of Resident" in run.text:
-# # #                             run.text = run.text.replace("Address of Resident", f"Site: {sample_id}")
+# # #                             run.text = run.text.replace("Address of Resident", site_id)
 # # #                         if "Average Lead concentration (ppm)" in run.text:
-# # #                             # Format to 1 decimal place
-# # #                             try:
-# # #                                 formatted_lead = f"Average Lead: {float(lead_avg):.1f} ppm"
-# # #                                 run.text = run.text.replace("Average Lead concentration (ppm)", formatted_lead)
-# # #                             except ValueError:
-# # #                                 pass # Skip if LeadAvg isn't a clean number yet
-                                
-# # #         # Save the personalized report
-# # #         output_file = os.path.join(output_dir, f"Resident_Report_{sample_id}.pptx")
+# # #                             nysh_label, _ = get_nysh_category(site_avg)
+# # #                             run.text = run.text.replace("Average Lead concentration (ppm)", f"Average Lead: {site_avg:.1f} ppm — {nysh_label}")
+# # #                         if "Visual map of property with color-coded zones" in run.text or "Highlight hotspots" in run.text:
+# # #                             run.text = "" 
+
+# # #             if slide_idx == 0 and map_image_path:
+# # #                 light_map_path = map_image_path.replace('.png', '_light.png')
+# # #                 try:
+# # #                     generate_map_image(site_configs[site_id], df, light_map_path, style="light")
+# # #                     from PIL import Image as PILImage
+# # #                     img = PILImage.open(light_map_path)
+# # #                     img_aspect = img.width / img.height
+# # #                     max_w, max_h = 7.5, 3.8
+# # #                     w = max_h * img_aspect if max_w / img_aspect > max_h else max_w
+# # #                     h = w / img_aspect
+# # #                     slide.shapes.add_picture(light_map_path, Inches((8.5 - w) / 2), Inches(6.15), width=Inches(w), height=Inches(h))
+# # #                 except Exception: pass
+
+# # #             if slide_idx == 4 and map_image_path and os.path.exists(map_image_path):
+# # #                 slide.shapes.add_picture(map_image_path, Inches(0.6), Inches(1.7), width=Inches(7.2))
+
+# # #         safe_filename = "".join(c for c in site_id if c.isalnum() or c == ' ').rstrip()
+# # #         output_file = os.path.join(output_dir, f"Resident_Report_{safe_filename}.pptx")
 # # #         prs.save(output_file)
+# # #         report_count += 1
 
-# # # # --- 1. FILE UPLOADER ---
-# # # uploaded_files = st.file_uploader("Upload New XRF analysis CSVs", type=['csv'], accept_multiple_files=True)
+# # #     return report_count
 
-# # # if st.button("🚀 Process Data & Update Master", type="primary"):
-# # #     if uploaded_files:
-# # #         # Step A: Save the uploaded files to the correct folder (Capital 'D')
-# # #         xrf_dir = os.path.join("Data", "xrf_data")
-# # #         os.makedirs(xrf_dir, exist_ok=True)
-        
-# # #         for f in uploaded_files:
-# # #             file_path = os.path.join(xrf_dir, f.name)
-# # #             with open(file_path, "wb") as f_out:
-# # #                 f_out.write(f.read())
-                
-# # #         # Step B: Run the backend Python script automatically
-# # #         with st.spinner("Running background ETL pipeline..."):
-# # #             result = subprocess.run(["python", "src/data.py"], capture_output=True, text=True)
-            
-# # #         if result.returncode == 0:
-# # #             st.success("🎉 Pipeline executed successfully!")
-# # #         else:
-# # #             st.error("⚠️ Pipeline encountered an error. Please check your terminal for details.")
-# # #             st.stop()
-            
-# # #         # Step C: Find the newly created Master file
-# # #         master_dir = os.path.join("Data", "master_data")
-# # #         master_files = glob.glob(os.path.join(master_dir, 'Master_Data_v*.csv'))
-        
-# # #         if master_files:
-# # #             def get_version(filename):
-# # #                 match = re.search(r'_v(\d+)\.csv', filename)
-# # #                 return int(match.group(1)) if match else 0
-                
-# # #             latest_master_file = max(master_files, key=get_version)
-            
-# # #             # Step D: Generate the PPTX Reports
-# # #             with st.spinner("Generating personalized resident reports..."):
-# # #                 template_path = os.path.join("src", "Report_Template.pptx")
-# # #                 reports_dir = os.path.join("Data", "generated_reports")
-# # #                 zip_path_base = os.path.join("Data", "All_Resident_Reports")
-                
-# # #                 if os.path.exists(template_path):
-# # #                     generate_pptx_reports(latest_master_file, template_path, reports_dir)
-# # #                     # Zip the folder for easy downloading
-# # #                     shutil.make_archive(zip_path_base, 'zip', reports_dir)
-# # #                     st.success("📄 Resident Reports generated successfully!")
-# # #                 else:
-# # #                     st.warning(f"⚠️ Template not found at {template_path}. Skipping report generation.")
+# # # # ═══════════════════════════════════════════════
+# # # #  UI: HEADER & INSTRUCTIONS
+# # # # ═══════════════════════════════════════════════
+# # # col_header, col_info = st.columns([2, 1])
+# # # with col_header:
+# # #     st.title("⚙️ Data Pipeline Manager")
+# # #     st.markdown("Automated ETL, spatial mapping, and resident report generation.")
+# # # with col_info:
+# # #     st.info("💡 **Instructions:** Drag and drop your raw XRF `.csv` files below. The backend will parse the readings, append them to the Master Database, and automatically generate updated site reports.")
 
-# # #             # --- DISPLAY DOWNLOAD BUTTONS ---
-# # #             st.markdown("---")
-# # #             col1, col2 = st.columns(2)
-            
-# # #             with col1:
-# # #                 st.markdown("### 📊 Master Data")
-# # #                 with open(latest_master_file, "rb") as file:
-# # #                     st.download_button(
-# # #                         label=f"Download Master Data ({os.path.basename(latest_master_file)})",
-# # #                         data=file,
-# # #                         file_name=os.path.basename(latest_master_file),
-# # #                         mime="text/csv"
-# # #                     )
-            
-# # #             with col2:
-# # #                 zip_file_full = zip_path_base + ".zip"
-# # #                 if os.path.exists(zip_file_full):
-# # #                     st.markdown("### 🗂️ Resident Reports")
-# # #                     with open(zip_file_full, "rb") as zip_file:
-# # #                         st.download_button(
-# # #                             label="Download All Reports (ZIP)",
-# # #                             data=zip_file,
-# # #                             file_name="GroundSense_Resident_Reports.zip",
-# # #                             mime="application/zip",
-# # #                             type="primary"
-# # #                         )
+# # # st.markdown("---")
+
+# # # # ═══════════════════════════════════════════════
+# # # #  UI: UPLOAD & PROCESS 
+# # # # ═══════════════════════════════════════════════
+# # # st.subheader("1. Ingest Data")
+# # # uploaded_files = st.file_uploader("Upload Raw XRF Chemistry Files", type=['csv'], accept_multiple_files=True)
+
+# # # if st.button("🚀 Execute Data Pipeline", type="primary", use_container_width=True):
+# # #     if not uploaded_files:
+# # #         st.warning("⚠️ Please upload at least one chemistry CSV file to begin.")
 # # #     else:
-# # #         st.warning("Please upload at least one chemistry file first.")
+# # #         # Keep it clean: no expanded details, just the top-level loading message
+# # #         with st.status("Executing the Data Pipeline...", expanded=False) as status:
+# # #             try:
+# # #                 # 1. Save uploaded files
+# # #                 xrf_dir = os.path.join("data", "xrf_data")
+# # #                 os.makedirs(xrf_dir, exist_ok=True)
+# # #                 for f in uploaded_files:
+# # #                     with open(os.path.join(xrf_dir, f.name), "wb") as f_out:
+# # #                         f_out.write(f.read())
 
-# # import streamlit as st
-# # import os
-# # import glob
-# # import re
-# # import subprocess
-# # import shutil
-# # import pandas as pd
-# # from pptx import Presentation
-
-
-# # # --- PAGE CONFIGURATION ---
-# # st.set_page_config(page_title="GroundSense Data Pipeline", page_icon="⚙️", layout="centered")
-
-# # st.title("⚙️ Data Pipeline Manager")
-# # st.markdown("Drag and drop your raw XRF analysis files here. The backend will automatically process the data, map the Sample IDs, and generate the newest version of the Master Data and Resident Reports.")
-# # st.markdown("---")
-
-# # # --- REPORT GENERATION FUNCTION ---
-# # def generate_pptx_reports(master_csv_path, template_path, output_dir, site_db_path):
-# #     df = pd.read_csv(master_csv_path)
-    
-# #     # Filter out rows where SampleID is blank or missing
-# #     df = df[df['SampleID'].notna() & (df['SampleID'] != "")]
-    
-# #     # --- 1. EXTRACT REAL SITE ADDRESS FROM DATABASE ---
-# #     if os.path.exists(site_db_path):
-# #         # Using latin1 to prevent decode errors
-# #         site_db = pd.read_csv(site_db_path, header=1, encoding='latin1') 
-        
-# #         # The database only lists the address on the first row of a site's block.
-# #         # This forward-fills the address down so every single sample gets attached to a real address!
-# #         site_db['Address'] = site_db['Address'].ffill()
-        
-# #         # Create a mapping dictionary: {SampleID: Address}
-# #         site_mapping = dict(zip(site_db['SampleID'].dropna(), site_db['Address'].dropna()))
-        
-# #         # Map the addresses to our master dataframe. (If an address isn't found, fallback to the SampleID)
-# #         df['SiteID'] = df['SampleID'].map(site_mapping).fillna(df['SampleID'])
-# #     else:
-# #         st.warning(f"⚠️ Could not find Site Database at {site_db_path}. Reports will not be grouped by address.")
-# #         df['SiteID'] = df['SampleID']
-    
-# #     # --- 2. CALCULATE TRUE SITE AVERAGE ---
-# #     df['LeadPPM_Numeric'] = pd.to_numeric(df['LeadPPM'], errors='coerce')
-    
-# #     # Group all samples (A1, A2, etc.) by their new Address and calculate the mean average
-# #     site_averages = df.groupby('SiteID')['LeadPPM_Numeric'].mean().reset_index()
-    
-# #     os.makedirs(output_dir, exist_ok=True)
-    
-# #     # --- 3. GENERATE ONE REPORT PER SITE (ADDRESS) ---
-# #     for _, row in site_averages.iterrows():
-# #         site_id = str(row['SiteID'])
-# #         site_avg = row['LeadPPM_Numeric']
-        
-# #         if pd.isna(site_avg):
-# #             continue
-            
-# #         # Load the presentation template
-# #         prs = Presentation(template_path)
-        
-# #         # Loop through slides, shapes, and text to find placeholders
-# #         for slide in prs.slides:
-# #             for shape in slide.shapes:
-# #                 if not shape.has_text_frame:
-# #                     continue
-# #                 for paragraph in shape.text_frame.paragraphs:
-# #                     for run in paragraph.runs:
-# #                         # Replace specific text found in the template
-# #                         if "Name of Resident" in run.text:
-# #                             run.text = run.text.replace("Name of Resident", f"Resident at {site_id}")
-# #                         if "Address of Resident" in run.text:
-# #                             run.text = run.text.replace("Address of Resident", site_id)
-# #                         if "Average Lead concentration (ppm)" in run.text:
-# #                             # Format to 1 decimal place
-# #                             formatted_lead = f"Average Lead: {site_avg:.1f} ppm"
-# #                             run.text = run.text.replace("Average Lead concentration (ppm)", formatted_lead)
-                                
-# #         # Clean up filename to prevent errors with weird characters
-# #         safe_filename = "".join([c for c in site_id if c.isalpha() or c.isdigit() or c==' ']).rstrip()
-# #         output_file = os.path.join(output_dir, f"Resident_Report_{safe_filename}.pptx")
-# #         prs.save(output_file)
-
-# # # --- 1. FILE UPLOADER ---
-# # uploaded_files = st.file_uploader("Upload New XRF analysis CSVs", type=['csv'], accept_multiple_files=True)
-
-# # if st.button("🚀 Process Data & Update Master", type="primary"):
-# #     if uploaded_files:
-# #         # Step A: Save the uploaded files to the correct folder
-# #         xrf_dir = os.path.join("Data", "xrf_data")
-# #         os.makedirs(xrf_dir, exist_ok=True)
-        
-# #         for f in uploaded_files:
-# #             file_path = os.path.join(xrf_dir, f.name)
-# #             with open(file_path, "wb") as f_out:
-# #                 f_out.write(f.read())
+# # #                 # 2. Run ETL script
+# # #                 result = subprocess.run(["python", "src/data.py"], capture_output=True, text=True)
                 
-# #         # Step B: Run the backend Python script automatically
-# #         with st.spinner("Running background ETL pipeline..."):
-# #             result = subprocess.run(["python", "src/data.py"], capture_output=True, text=True)
-            
-# #         if result.returncode == 0:
-# #             st.success("🎉 Pipeline executed successfully!")
-# #         else:
-# #             st.error("⚠️ Pipeline encountered an error. Please check your terminal for details.")
-# #             st.stop()
-            
-# #         # Step C: Find the newly created Master file
-# #         master_dir = os.path.join("Data", "master_data")
-# #         master_files = glob.glob(os.path.join(master_dir, 'Master_Data_v*.csv'))
-        
-# #         if master_files:
-# #             def get_version(filename):
-# #                 match = re.search(r'_v(\d+)\.csv', filename)
-# #                 return int(match.group(1)) if match else 0
+# # #                 if result.returncode != 0:
+# # #                     status.update(label="Pipeline Failed during ETL process.", state="error")
+# # #                     st.error(f"Backend Error Output:\n{result.stderr}")
+# # #                     st.stop()
+
+# # #                 # 3. Locate Master Data
+# # #                 master_dir = os.path.join("data", "master_data")
+# # #                 master_files = glob.glob(os.path.join(master_dir, 'Master_Data_v*.csv'))
                 
-# #             latest_master_file = max(master_files, key=get_version)
-            
-# #             # Step D: Generate the PPTX Reports
-# #             with st.spinner("Grouping samples by address and generating reports..."):
-# #                 # Make sure your template is named exactly this and placed in the src folder!
-# #                 template_path = os.path.join("src", "Resident_Report_Template.pptx") 
-# #                 site_db_path = os.path.join("Data", "site_databases", "XRF Site Analysis Database W SampleID(Sheet1).csv")
-# #                 reports_dir = os.path.join("Data", "generated_reports")
-# #                 zip_path_base = os.path.join("Data", "All_Resident_Reports")
-                
-# #                 if os.path.exists(template_path):
-# #                     generate_pptx_reports(latest_master_file, template_path, reports_dir, site_db_path)
+# # #                 if not master_files:
+# # #                     status.update(label="Failed to locate output Master Data.", state="error")
+# # #                     st.stop()
+
+# # #                 latest_master = max(master_files, key=lambda x: int(re.search(r'_v(\d+)\.csv', x).group(1) if re.search(r'_v(\d+)\.csv', x) else 0))
+# # #                 st.session_state.latest_master_file = latest_master
+
+# # #                 # 4. Generate Reports
+# # #                 template_path = os.path.join("src", "Resident_Report_Template.pptx")
+# # #                 site_db_path = os.path.join("data", "site_databases", "XRF Site Analysis Database W SampleID(Sheet1).csv")
+# # #                 site_configs_path = os.path.join("data", "site_configs", "site_configs.json")
+# # #                 reports_dir = os.path.join("data", "generated_reports")
+# # #                 zip_path_base = os.path.join("data", "All_Resident_Reports")
+
+# # #                 if os.path.exists(template_path):
+# # #                     report_count = generate_pptx_reports(
+# # #                         st.session_state.latest_master_file,
+# # #                         template_path, reports_dir,
+# # #                         site_db_path, site_configs_path
+# # #                     )
+# # #                     st.session_state.reports_generated = report_count
                     
-# #                     # Zip the folder for easy downloading
-# #                     shutil.make_archive(zip_path_base, 'zip', reports_dir)
-# #                     st.success("📄 Resident Reports generated successfully!")
-# #                 else:
-# #                     st.warning(f"⚠️ Template not found at {template_path}. Skipping report generation.")
+# # #                     # Archive into ZIP
+# # #                     shutil.make_archive(zip_path_base, 'zip', reports_dir)
+# # #                 else:
+# # #                     st.warning("⚠️ Template missing. Skipped report generation.")
 
-# #             # --- DISPLAY DOWNLOAD BUTTONS ---
-# #             st.markdown("---")
-# #             col1, col2 = st.columns(2)
-            
-# #             with col1:
-# #                 st.markdown("### 📊 Master Data")
-# #                 with open(latest_master_file, "rb") as file:
-# #                     st.download_button(
-# #                         label=f"Download Master Data ({os.path.basename(latest_master_file)})",
-# #                         data=file,
-# #                         file_name=os.path.basename(latest_master_file),
-# #                         mime="text/csv"
-# #                     )
-            
-# #             with col2:
-# #                 zip_file_full = zip_path_base + ".zip"
-# #                 if os.path.exists(zip_file_full):
-# #                     st.markdown("### 🗂️ Resident Reports")
-# #                     with open(zip_file_full, "rb") as zip_file:
-# #                         st.download_button(
-# #                             label="Download All Reports (ZIP)",
-# #                             data=zip_file,
-# #                             file_name="GroundSense_Resident_Reports.zip",
-# #                             mime="application/zip",
-# #                             type="primary"
-# #                         )
-# #     else:
-# #         st.warning("Please upload at least one chemistry file first.")
+# # #                 # Final Success Message
+# # #                 status.update(label="Pipeline Execution Complete!", state="complete")
+# # #                 st.session_state.pipeline_success = True
+
+# # #             except Exception as e:
+# # #                 status.update(label="Critical System Error", state="error")
+# # #                 st.error(f"An unexpected error occurred: {str(e)}")
+# # #                 st.session_state.pipeline_success = False
+
+# # # # ═══════════════════════════════════════════════
+# # # #  UI: RESULTS & EXPORT
+# # # # ═══════════════════════════════════════════════
+# # # if st.session_state.pipeline_success and st.session_state.latest_master_file:
+# # #     st.markdown("---")
+# # #     st.subheader("2. Deployment Artifacts")
+    
+# # #     # KPIs
+# # #     df_result = pd.read_csv(st.session_state.latest_master_file)
+# # #     kpi1, kpi2, kpi3 = st.columns(3)
+# # #     kpi1.metric("Total Records Processed", len(df_result))
+# # #     kpi2.metric("Sites Evaluated", df_result['SampleID'].nunique() if 'SampleID' in df_result else "N/A")
+# # #     kpi3.metric("Resident Reports Generated", st.session_state.reports_generated)
+    
+# # #     st.write("")
+    
+# # #     # Download Buttons
+# # #     col_dl1, col_dl2 = st.columns(2)
+# # #     with col_dl1:
+# # #         st.success("### 📊 Master Database")
+# # #         st.caption(f"File: `{os.path.basename(st.session_state.latest_master_file)}`")
+# # #         with open(st.session_state.latest_master_file, "rb") as file:
+# # #             st.download_button(
+# # #                 label="📥 Download Master Data (CSV)",
+# # #                 data=file,
+# # #                 file_name=os.path.basename(st.session_state.latest_master_file),
+# # #                 mime="text/csv",
+# # #                 use_container_width=True
+# # #             )
+
+# # #     with col_dl2:
+# # #         zip_path_base = os.path.join("data", "All_Resident_Reports")
+# # #         zip_file_full = zip_path_base + ".zip"
+# # #         if os.path.exists(zip_file_full):
+# # #             st.info("### 🗂️ Resident Reports")
+# # #             st.caption(f"Includes {st.session_state.reports_generated} formatted PPTX presentations.")
+# # #             with open(zip_file_full, "rb") as zip_file:
+# # #                 st.download_button(
+# # #                     label="📥 Download All Reports (ZIP)",
+# # #                     data=zip_file,
+# # #                     file_name="GroundSense_Resident_Reports.zip",
+# # #                     mime="application/zip",
+# # #                     use_container_width=True
+# # #                 )
+
+# """
+# etl_manager.py — GroundSense Data Pipeline Manager
+
+# Updates from original:
+#   1. Imports NYSH colors from groundsense_config.py
+#   2. Generates static map images (matplotlib, dark style only) for each site
+#   3. Inserts map images into correct slides of the Resident Report PPTX template
+#   4. Fills in zone-based average Lead PPM values (backyard / front yard)
+
+# Template slide layout (6 pages, 0-indexed):
+#   Slide 0: Cover letter — replace "Address of Resident", "Name of Resident", "Date"
+#   Slide 1: Sample Collection Method — keep as-is
+#   Slide 2: Soil Report Summary — insert dark map (no basemap)
+#   Slide 3: Detailed Results — fill [###] with real PPM, insert map
+#   Slide 4: NY Soil Health info — keep as-is
+#   Slide 5: Lead level table & safety — keep as-is
+# """
+
 
 # import streamlit as st
 # import os
+# import sys
 # import glob
 # import re
 # import subprocess
-# import shutil
+# import json
+# import math
 # import pandas as pd
+# import numpy as np
+# import matplotlib
+# matplotlib.use('Agg')
+# import matplotlib.pyplot as plt
+# import matplotlib.patches as mpatches
+# from matplotlib.patches import FancyBboxPatch
 # from pptx import Presentation
-# import folium
-# from streamlit_folium import st_folium
+# from pptx.util import Inches
+# from datetime import date
 
-# # --- PAGE CONFIGURATION ---
-# st.set_page_config(page_title="GroundSense Data Pipeline", page_icon="⚙️", layout="centered")
+# # Inject src to path so groundsense_config can be imported
+# sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 
-# # --- INITIALIZE SESSION STATE MEMORY ---
+# from groundsense_config import (
+#     get_nysh_category,
+#     NYSH_TIERS,
+#     NYSH_COLORS,
+#     calculate_coordinate,
+#     resolve_lod,
+# )
+
+# # ═══════════════════════════════════════════════
+# #  PAGE CONFIGURATION
+# # ═══════════════════════════════════════════════
+# st.set_page_config(page_title="GroundSense Pipeline", page_icon="⚙️", layout="wide")
+
+# # Initialize Session State
 # if 'pipeline_success' not in st.session_state:
 #     st.session_state.pipeline_success = False
 # if 'latest_master_file' not in st.session_state:
 #     st.session_state.latest_master_file = None
+# if 'reports_generated' not in st.session_state:
+#     st.session_state.reports_generated = 0
+# if 'generated_report_list' not in st.session_state:
+#     st.session_state.generated_report_list = []
 
-# st.title("⚙️ Data Pipeline Manager")
-# st.markdown("Drag and drop your raw XRF analysis files here. The backend will automatically process the data, map the Sample IDs, and generate the newest version of the Master Data and Resident Reports.")
-# st.markdown("---")
+# # ═══════════════════════════════════════════════
+# #  MAP IMAGE GENERATOR (matplotlib) — DARK ONLY
+# # ═══════════════════════════════════════════════
+# def generate_map_image(site_config, master_df, output_path):
+#     """Generates a static dark-style PNG map image of a site's grid
+#     with NYSH coloring.  No light/white variant is produced."""
+#     anchor = site_config["anchor"]
+#     grid = site_config.get("grid_blocks", {})
+#     points = site_config.get("point_samples", {})
 
-# # --- MAPPING FUNCTION ---
-# def generate_site_map(df):
-#     if 'latitude' not in df.columns and 'Lat' in df.columns:
-#         df = df.rename(columns={'Lat': 'latitude'})
-#     if 'longitude' not in df.columns and 'Long' in df.columns:
-#         df = df.rename(columns={'Long': 'longitude'})
+#     # Ensure LeadPPM_Clean column exists (work on a copy to avoid side-effects)
+#     if 'LeadPPM_Clean' not in master_df.columns:
+#         master_df = master_df.copy()
+#         master_df['LeadPPM_Clean'] = master_df['LeadPPM'].apply(resolve_lod)
 
-#     m = folium.Map(location=[42.8864, -78.8784], zoom_start=10, tiles="cartodbpositron")
-    
-#     if 'latitude' in df.columns and 'longitude' in df.columns:
-#         site_col = 'Address' if 'Address' in df.columns else 'SampleID' if 'SampleID' in df.columns else 'SiteID'
-#         for idx, row in df.dropna(subset=['latitude', 'longitude']).iterrows():
-#             site_name = row.get(site_col, f"Site {idx}")
-#             folium.Marker(
-#                 location=[row['latitude'], row['longitude']],
-#                 popup=f"Site: {site_name}",
-#                 tooltip="Click for info",
-#                 icon=folium.Icon(color='blue', icon='info-sign')
-#             ).add_to(m)
-#     else:
-#         st.warning("⚠️ Could not find 'latitude' and 'longitude' columns in the Master Data to plot the map.")
-#     return m
+#     def match_ppm(patterns):
+#         for pat in patterns:
+#             if not pat:
+#                 continue
+#             matches = master_df[master_df['SampleID'].str.contains(pat, case=False, na=False)]
+#             if not matches.empty:
+#                 avg = matches['LeadPPM_Clean'].mean()
+#                 if pd.notna(avg):
+#                     return avg
+#         return None
 
-# # --- REPORT GENERATION FUNCTION ---
-# def generate_pptx_reports(master_csv_path, template_path, output_dir, site_db_path):
+#     # Dark style constants
+#     bg       = '#1a1c24'
+#     text_c   = 'white'
+#     edge_c   = 'white'
+
+#     fig, ax = plt.subplots(1, 1, figsize=(8, 7), facecolor=bg)
+#     ax.set_facecolor(bg)
+
+#     all_x, all_y = [], []
+
+#     for block_id, dims in grid.items():
+#         if block_id.startswith("_"):
+#             continue
+#         sx, sy = dims["sw_x"], dims["sw_y"]
+#         w = dims["ne_x"] - dims["sw_x"]
+#         h = dims["ne_y"] - dims["sw_y"]
+
+#         patterns = dims.get("sample_id_patterns", [])
+#         ppm = match_ppm(patterns)
+#         if ppm is None:
+#             ppm = dims.get("mock_ppm", 0)
+
+#         _label, color = get_nysh_category(ppm)
+
+#         rect = FancyBboxPatch(
+#             (sx, sy), w, h, boxstyle="round,pad=0.3",
+#             facecolor=color, edgecolor=edge_c, linewidth=1.5, alpha=0.8,
+#         )
+#         ax.add_patch(rect)
+
+#         cx, cy = sx + w / 2, sy + h / 2
+#         ax.text(cx, cy, block_id, ha='center', va='center',
+#                 fontsize=8, fontweight='bold', color='white',
+#                 bbox=dict(boxstyle='round,pad=0.15', facecolor='black', alpha=0.4))
+#         ax.text(cx, cy - h * 0.25, "{:.0f}".format(ppm),
+#                 ha='center', va='center', fontsize=7, color='white', alpha=0.9)
+
+#         all_x.extend([sx, sx + w])
+#         all_y.extend([sy, sy + h])
+
+#     # Point samples
+#     for pt_id, pt in points.items():
+#         if pt_id.startswith("_"):
+#             continue
+#         ox, oy = pt.get("offset_x", 0), pt.get("offset_y", 0)
+#         patterns = pt.get("sample_id_patterns", [])
+#         ppm = match_ppm(patterns)
+
+#         if ppm is not None:
+#             _label, color = get_nysh_category(ppm)
+#             ppm_str = "{:.0f}".format(ppm)
+#         else:
+#             color, ppm_str = "#808080", "?"
+
+#         ax.plot(ox, oy, 'o', markersize=10, color=color,
+#                 markeredgecolor=edge_c, markeredgewidth=1.5)
+#         ax.text(ox, oy + 2.5, pt_id, ha='center', va='bottom',
+#                 fontsize=6, color='#cccccc', fontstyle='italic')
+#         ax.text(ox, oy - 2.5, ppm_str, ha='center', va='top',
+#                 fontsize=6, color='white', fontweight='bold')
+#         all_x.append(ox)
+#         all_y.append(oy)
+
+#     # Anchor marker
+#     ax.plot(0, 0, marker='^', markersize=12, color='red',
+#             markeredgecolor=edge_c, markeredgewidth=1.5, zorder=10)
+#     ax.text(0, -3, "Anchor", ha='center', va='top',
+#             fontsize=7, color='red', fontweight='bold')
+
+#     if all_x and all_y:
+#         pad = 10
+#         ax.set_xlim(min(all_x) - pad, max(all_x) + pad)
+#         ax.set_ylim(min(all_y) - pad, max(all_y) + pad)
+
+#     ax.set_aspect('equal')
+#     ax.set_xlabel('East (ft)', color='#888888', fontsize=9)
+#     ax.set_ylabel('North (ft)', color='#888888', fontsize=9)
+#     ax.tick_params(colors='#666666', labelsize=7)
+#     for spine in ax.spines.values():
+#         spine.set_color('#333333')
+
+#     site_name = site_config.get("address", "Site")
+#     ax.set_title(f"{site_name} — Lead Contamination Map",
+#                  color=text_c, fontsize=12, fontweight='bold', pad=12)
+
+#     legend_patches = [mpatches.Patch(color=t["color"], label=t["label"])
+#                       for t in NYSH_TIERS]
+#     legend_patches.append(mpatches.Patch(color="#808080", label="No Data"))
+#     ax.legend(handles=legend_patches, loc='lower right', fontsize=6,
+#               framealpha=0.8, facecolor='#2a2d38', edgecolor='#444444',
+#               labelcolor='white')
+
+#     plt.tight_layout()
+#     plt.savefig(output_path, dpi=200, bbox_inches='tight',
+#                 facecolor=bg, edgecolor='none')
+#     plt.close()
+#     return output_path
+
+
+# # ═══════════════════════════════════════════════
+# #  ZONE-BASED PPM CALCULATOR
+# # ═══════════════════════════════════════════════
+# def compute_zone_averages(site_config, master_df):
+#     """Compute average Lead PPM for each zone (back, front, yard, transect).
+
+#     Returns dict, e.g. {"back": 542.3, "front": 718.1}
+#     """
+#     grid = site_config.get("grid_blocks", {})
+
+#     if 'LeadPPM_Clean' not in master_df.columns:
+#         master_df = master_df.copy()
+#         master_df['LeadPPM_Clean'] = master_df['LeadPPM'].apply(resolve_lod)
+
+#     zone_values = {}  # zone_name -> [ppm, ...]
+
+#     for block_id, dims in grid.items():
+#         if block_id.startswith("_"):
+#             continue
+#         zone = dims.get("zone", "yard")
+#         patterns = dims.get("sample_id_patterns", [])
+
+#         ppm = None
+#         for pat in patterns:
+#             if not pat:
+#                 continue
+#             matches = master_df[
+#                 master_df['SampleID'].str.contains(pat, case=False, na=False)
+#             ]
+#             if not matches.empty:
+#                 avg = matches['LeadPPM_Clean'].mean()
+#                 if pd.notna(avg):
+#                     ppm = avg
+#                     break
+
+#         if ppm is None:
+#             ppm = dims.get("mock_ppm")
+
+#         if ppm is not None and not (isinstance(ppm, float) and math.isnan(ppm)):
+#             zone_values.setdefault(zone, []).append(ppm)
+
+#     return {z: sum(v) / len(v) for z, v in zone_values.items() if v}
+
+
+# def format_zone_ppm(zone_averages):
+#     """Map zone averages to backyard_ppm / frontyard_ppm for template filling.
+
+#     Single-zone sites (yard, transect) map to backyard only.
+#     """
+#     result = {"backyard_ppm": None, "frontyard_ppm": None}
+#     for zone, avg in zone_averages.items():
+#         z = zone.lower()
+#         if z in ("back", "backyard"):
+#             result["backyard_ppm"] = round(avg)
+#         elif z in ("front", "frontyard", "front_yard"):
+#             result["frontyard_ppm"] = round(avg)
+#         elif z in ("yard", "transect"):
+#             result["backyard_ppm"] = round(avg)
+#     return result
+
+
+# # ═══════════════════════════════════════════════
+# #  REPORT GENERATION (PPTX)
+# # ═══════════════════════════════════════════════
+# def generate_pptx_reports(master_csv_path, template_path, output_dir,
+#                           site_db_path, site_configs_path):
+#     """Generate one PPTX resident report per site.
+
+#     Returns (report_count, list_of_output_paths).
+#     """
 #     df = pd.read_csv(master_csv_path)
 #     df = df[df['SampleID'].notna() & (df['SampleID'] != "")]
-    
+#     df['LeadPPM_Clean'] = df['LeadPPM'].apply(resolve_lod)
+
+#     # Map SampleIDs → site addresses via the site database
 #     if os.path.exists(site_db_path):
-#         site_db = pd.read_csv(site_db_path, header=1, encoding='latin1') 
+#         site_db = pd.read_csv(site_db_path, header=1, encoding='latin1')
 #         site_db['Address'] = site_db['Address'].ffill()
-#         site_mapping = dict(zip(site_db['SampleID'].dropna(), site_db['Address'].dropna()))
+#         site_mapping = dict(
+#             zip(site_db['SampleID'].dropna(), site_db['Address'].dropna())
+#         )
 #         df['SiteID'] = df['SampleID'].map(site_mapping).fillna(df['SampleID'])
 #     else:
 #         df['SiteID'] = df['SampleID']
-    
-#     df['LeadPPM_Numeric'] = pd.to_numeric(df['LeadPPM'], errors='coerce')
-#     site_averages = df.groupby('SiteID')['LeadPPM_Numeric'].mean().reset_index()
-    
+
+#     # Load site configs
+#     site_configs = {}
+#     if os.path.exists(site_configs_path):
+#         with open(site_configs_path, 'r') as f:
+#             raw = json.load(f)
+#         site_configs = {s["address"]: s for s in raw}
+
+#     site_averages = df.groupby('SiteID')['LeadPPM_Clean'].mean().reset_index()
+
 #     os.makedirs(output_dir, exist_ok=True)
-    
+#     maps_dir = os.path.join(output_dir, "map_images")
+#     os.makedirs(maps_dir, exist_ok=True)
+
+#     report_count = 0
+#     generated_reports = []  # list of (site_id, filepath) tuples
+#     today_str = date.today().strftime("%m/%d/%Y")
+
 #     for _, row in site_averages.iterrows():
 #         site_id = str(row['SiteID'])
-#         site_avg = row['LeadPPM_Numeric']
-#         if pd.isna(site_avg): continue
-            
-#         prs = Presentation(template_path)
-#         for slide in prs.slides:
+#         site_avg = row['LeadPPM_Clean']
+#         if pd.isna(site_avg):
+#             continue
+
+#         # ── 1. Generate dark map image (only style) ──
+#         map_image_path = None
+#         if site_id in site_configs:
+#             safe_name = "".join(
+#                 c for c in site_id if c.isalnum() or c == ' '
+#             ).rstrip()
+#             map_image_path = os.path.join(maps_dir, f"map_{safe_name}.png")
+#             try:
+#                 generate_map_image(site_configs[site_id], df, map_image_path)
+#             except Exception as e:
+#                 st.warning(f"Could not generate map for {site_id}: {e}")
+#                 map_image_path = None
+
+#         # ── 2. Compute zone-based PPM ──
+#         zone_ppm = {"backyard_ppm": None, "frontyard_ppm": None}
+#         if site_id in site_configs:
+#             zone_ppm = format_zone_ppm(
+#                 compute_zone_averages(site_configs[site_id], df)
+#             )
+#         if zone_ppm["backyard_ppm"] is None:
+#             zone_ppm["backyard_ppm"] = round(site_avg)
+
+#         # ── 3. Open PPTX template ──
+#         try:
+#             prs = Presentation(template_path)
+#         except Exception as e:
+#             raise Exception(f"Failed to load PPTX template: {e}")
+
+#         # ── 4. Walk every slide & do text replacements ──
+#         for slide_idx, slide in enumerate(prs.slides):
+
+#             # --- Text replacements ---
 #             for shape in slide.shapes:
-#                 if not shape.has_text_frame: continue
+#                 if not shape.has_text_frame:
+#                     continue
 #                 for paragraph in shape.text_frame.paragraphs:
 #                     for run in paragraph.runs:
-#                         if "Name of Resident" in run.text: run.text = run.text.replace("Name of Resident", f"Resident at {site_id}")
-#                         if "Address of Resident" in run.text: run.text = run.text.replace("Address of Resident", site_id)
-#                         if "Average Lead concentration (ppm)" in run.text:
-#                             formatted_lead = f"Average Lead: {site_avg:.1f} ppm"
-#                             run.text = run.text.replace("Average Lead concentration (ppm)", formatted_lead)
-                                
-#         safe_filename = "".join([c for c in site_id if c.isalpha() or c.isdigit() or c==' ']).rstrip()
-#         output_file = os.path.join(output_dir, f"Resident_Report_{safe_filename}.pptx")
-#         prs.save(output_file)
+#                         txt = run.text
 
-# # --- 1. FILE UPLOADER ---
-# uploaded_files = st.file_uploader("Upload New XRF analysis CSVs", type=['csv'], accept_multiple_files=True)
+#                         # Slide 0 — Cover letter
+#                         if "Name of Resident" in txt:
+#                             run.text = txt.replace(
+#                                 "Name of Resident",
+#                                 f"Resident at {site_id}",
+#                             )
+#                             txt = run.text
+#                         if "Address of Resident" in txt:
+#                             run.text = txt.replace("Address of Resident", site_id)
+#                             txt = run.text
+#                         # Replace standalone "Date" on the cover
+#                         if txt.strip() == "Date":
+#                             run.text = today_str
+#                             txt = run.text
 
-# # --- 2. PIPELINE EXECUTION ---
-# if st.button("🚀 Process Data & Update Master", type="primary"):
-#     if uploaded_files:
-#         xrf_dir = os.path.join("Data", "xrf_data")
-#         os.makedirs(xrf_dir, exist_ok=True)
-        
-#         for f in uploaded_files:
-#             file_path = os.path.join(xrf_dir, f.name)
-#             with open(file_path, "wb") as f_out:
-#                 f_out.write(f.read())
-                
-#         with st.spinner("Running background ETL pipeline..."):
-#             result = subprocess.run(["python", "src/data.py"], capture_output=True, text=True)
-            
-#         if result.returncode == 0:
-#             st.success("🎉 Pipeline executed successfully!")
-            
-#             master_dir = os.path.join("Data", "master_data")
-#             master_files = glob.glob(os.path.join(master_dir, 'Master_Data_v*.csv'))
-            
-#             if master_files:
-#                 def get_version(filename):
-#                     match = re.search(r'_v(\d+)\.csv', filename)
-#                     return int(match.group(1)) if match else 0
-                    
-#                 # Save the success state and file path to memory!
-#                 st.session_state.latest_master_file = max(master_files, key=get_version)
-#                 st.session_state.pipeline_success = True
-                
-#                 with st.spinner("Grouping samples by address and generating reports..."):
-#                     template_path = os.path.join("src", "Resident_Report_Template.pptx") 
-#                     site_db_path = os.path.join("Data", "site_databases", "XRF Site Analysis Database W SampleID(Sheet1).csv")
-#                     reports_dir = os.path.join("Data", "generated_reports")
-#                     zip_path_base = os.path.join("Data", "All_Resident_Reports")
-                    
-#                     if os.path.exists(template_path):
-#                         generate_pptx_reports(st.session_state.latest_master_file, template_path, reports_dir, site_db_path)
-#                         shutil.make_archive(zip_path_base, 'zip', reports_dir)
-#                         st.success("📄 Resident Reports generated successfully!")
+#                         # Slide 3 — Fill [###] PPM placeholders
+#                         if "[###]" in txt:
+#                             low = txt.lower()
+#                             if "backyard" in low or "back" in low:
+#                                 val = zone_ppm["backyard_ppm"]
+#                                 run.text = txt.replace(
+#                                     "[###]", str(val) if val else "N/A"
+#                                 )
+#                             elif "front" in low:
+#                                 val = zone_ppm["frontyard_ppm"]
+#                                 if val is not None:
+#                                     run.text = txt.replace("[###]", str(val))
+#                                 else:
+#                                     # No front yard → blank line
+#                                     run.text = ""
+#                             else:
+#                                 run.text = txt.replace(
+#                                     "[###]", str(round(site_avg))
+#                                 )
+#                             txt = run.text
+
+#                         # Legacy placeholder clean-up
+#                         if "Average Lead concentration (ppm)" in txt:
+#                             lbl, _ = get_nysh_category(site_avg)
+#                             run.text = txt.replace(
+#                                 "Average Lead concentration (ppm)",
+#                                 f"Average Lead: {site_avg:.1f} ppm — {lbl}",
+#                             )
+#                         for old_ph in (
+#                             "Visual map of property with color-coded zones",
+#                             "Highlight hotspots",
+#                             "Heat map of property (no basemap)",
+#                             "Heat map of property with basemap",
+#                         ):
+#                             if old_ph in run.text:
+#                                 run.text = run.text.replace(old_ph, "")
+
+#             # --- Image insertions (map) ---
+#             if map_image_path and os.path.exists(map_image_path):
+#                 try:
+#                     from PIL import Image as PILImage
+#                     img = PILImage.open(map_image_path)
+#                     img_aspect = img.width / img.height
+#                 except Exception:
+#                     img_aspect = 1.14  # fallback
+
+#                 # Slide 2 — "Soil Report Summary" → dark map, no basemap
+#                 # Banner "Map of Site" ends ~3.6", QR code starts ~6.2"
+#                 # Available space: roughly 3.6" to 6.0" = 2.4" tall
+#                 if slide_idx == 2:
+#                     max_w, max_h = 6.0, 2.8
+#                     if max_w / img_aspect > max_h:
+#                         w, h = max_h * img_aspect, max_h
 #                     else:
-#                         st.warning(f"⚠️ Template not found at {template_path}. Skipping report generation.")
-#         else:
-#             st.error("⚠️ Pipeline encountered an error. Please check your terminal for details.")
-#             st.session_state.pipeline_success = False
-#     else:
-#         st.warning("Please upload at least one chemistry file first.")
+#                         w, h = max_w, max_w / img_aspect
+#                     left = Inches((10.0 - w) / 2)
+#                     top  = Inches(3.8)
+#                     try:
+#                         slide.shapes.add_picture(
+#                             map_image_path, left, top,
+#                             width=Inches(w), height=Inches(h),
+#                         )
+#                     except Exception as e:
+#                         st.warning(
+#                             f"Map insert failed (slide 3) for {site_id}: {e}"
+#                         )
 
-# # --- 3. DISPLAY RESULTS (LOCKED IN MEMORY) ---
+#                 # Slide 3 — "Detailed Results" → map below PPM text
+#                 # Title + PPM lines end ~2.2", slide bottom ~7.0"
+#                 # Available: roughly 2.2" to 7.0" = 4.8" tall
+#                 if slide_idx == 3:
+#                     max_w, max_h = 7.0, 4.2
+#                     if max_w / img_aspect > max_h:
+#                         w, h = max_h * img_aspect, max_h
+#                     else:
+#                         w, h = max_w, max_w / img_aspect
+#                     left = Inches((10.0 - w) / 2)
+#                     top  = Inches(2.6)
+#                     try:
+#                         slide.shapes.add_picture(
+#                             map_image_path, left, top,
+#                             width=Inches(w), height=Inches(h),
+#                         )
+#                     except Exception as e:
+#                         st.warning(
+#                             f"Map insert failed (slide 4) for {site_id}: {e}"
+#                         )
+
+#         # ── 5. Save the report ──
+#         safe_filename = "".join(
+#             c for c in site_id if c.isalnum() or c == ' '
+#         ).rstrip()
+#         output_file = os.path.join(
+#             output_dir, f"Resident_Report_{safe_filename}.pptx"
+#         )
+#         prs.save(output_file)
+#         generated_reports.append((site_id, output_file))
+#         report_count += 1
+
+#     return report_count, generated_reports
+
+
+# # ═══════════════════════════════════════════════
+# #  UI: HEADER & INSTRUCTIONS
+# # ═══════════════════════════════════════════════
+# col_header, col_info = st.columns([2, 1])
+# with col_header:
+#     st.title("⚙️ Data Pipeline Manager")
+#     st.markdown("Automated ETL, spatial mapping, and resident report generation.")
+# with col_info:
+#     st.info(
+#         "💡 **Instructions:** Drag and drop your raw XRF `.csv` files below. "
+#         "The backend will parse the readings, append them to the Master Database, "
+#         "and automatically generate updated site reports."
+#     )
+
+# st.markdown("---")
+
+# # ═══════════════════════════════════════════════
+# #  UI: UPLOAD & PROCESS
+# # ═══════════════════════════════════════════════
+# st.subheader("1. Ingest Data")
+# uploaded_files = st.file_uploader(
+#     "Upload Raw XRF Chemistry Files", type=['csv'], accept_multiple_files=True
+# )
+
+# if st.button("🚀 Execute Data Pipeline", type="primary", use_container_width=True):
+#     if not uploaded_files:
+#         st.warning("⚠️ Please upload at least one chemistry CSV file to begin.")
+#     else:
+#         with st.status("Executing the Data Pipeline...", expanded=False) as status:
+#             try:
+#                 # 1. Save uploaded files
+#                 xrf_dir = os.path.join("data", "xrf_data")
+#                 os.makedirs(xrf_dir, exist_ok=True)
+#                 for f in uploaded_files:
+#                     with open(os.path.join(xrf_dir, f.name), "wb") as f_out:
+#                         f_out.write(f.read())
+
+#                 # 2. Run ETL script
+#                 result = subprocess.run(
+#                     ["python", "src/data.py"], capture_output=True, text=True
+#                 )
+#                 if result.returncode != 0:
+#                     status.update(
+#                         label="Pipeline Failed during ETL process.", state="error"
+#                     )
+#                     st.error(f"Backend Error Output:\n{result.stderr}")
+#                     st.stop()
+
+#                 # 3. Locate Master Data
+#                 master_dir = os.path.join("data", "master_data")
+#                 master_files = glob.glob(
+#                     os.path.join(master_dir, 'Master_Data_v*.csv')
+#                 )
+#                 if not master_files:
+#                     status.update(
+#                         label="Failed to locate output Master Data.", state="error"
+#                     )
+#                     st.stop()
+
+#                 latest_master = max(
+#                     master_files,
+#                     key=lambda x: int(
+#                         re.search(r'_v(\d+)\.csv', x).group(1)
+#                         if re.search(r'_v(\d+)\.csv', x) else 0
+#                     ),
+#                 )
+#                 st.session_state.latest_master_file = latest_master
+
+#                 # 4. Generate Reports
+#                 template_path    = os.path.join("src", "Resident_Report_Template.pptx")
+#                 site_db_path     = os.path.join(
+#                     "data", "site_databases",
+#                     "XRF Site Analysis Database W SampleID(Sheet1).csv",
+#                 )
+#                 site_configs_path = os.path.join(
+#                     "data", "site_configs", "site_configs.json"
+#                 )
+#                 reports_dir  = os.path.join("data", "generated_reports")
+
+#                 if os.path.exists(template_path):
+#                     report_count, report_list = generate_pptx_reports(
+#                         st.session_state.latest_master_file,
+#                         template_path, reports_dir,
+#                         site_db_path, site_configs_path,
+#                     )
+#                     st.session_state.reports_generated = report_count
+#                     st.session_state.generated_report_list = report_list
+#                 else:
+#                     st.warning("⚠️ Template missing. Skipped report generation.")
+
+#                 status.update(
+#                     label="Pipeline Execution Complete!", state="complete"
+#                 )
+#                 st.session_state.pipeline_success = True
+
+#             except Exception as e:
+#                 status.update(label="Critical System Error", state="error")
+#                 st.error(f"An unexpected error occurred: {str(e)}")
+#                 st.session_state.pipeline_success = False
+
+# # ═══════════════════════════════════════════════
+# #  UI: RESULTS & EXPORT
+# # ═══════════════════════════════════════════════
 # if st.session_state.pipeline_success and st.session_state.latest_master_file:
 #     st.markdown("---")
-#     col1, col2 = st.columns(2)
-    
-#     with col1:
-#         st.markdown("### 📊 Master Data")
+#     st.subheader("2. Deployment Artifacts")
+
+#     # KPIs
+#     df_result = pd.read_csv(st.session_state.latest_master_file)
+#     kpi1, kpi2, kpi3 = st.columns(3)
+#     kpi1.metric("Total Records Processed", len(df_result))
+#     kpi2.metric(
+#         "Sites Evaluated",
+#         df_result['SampleID'].nunique() if 'SampleID' in df_result else "N/A",
+#     )
+#     kpi3.metric("Resident Reports Generated", st.session_state.reports_generated)
+
+#     st.write("")
+
+#     # Download Buttons
+#     col_dl1, col_dl2 = st.columns(2)
+#     with col_dl1:
+#         st.success("### 📊 Master Database")
+#         st.caption(
+#             f"File: `{os.path.basename(st.session_state.latest_master_file)}`"
+#         )
 #         with open(st.session_state.latest_master_file, "rb") as file:
 #             st.download_button(
-#                 label=f"Download Master Data ({os.path.basename(st.session_state.latest_master_file)})",
+#                 label="📥 Download Master Data (CSV)",
 #                 data=file,
 #                 file_name=os.path.basename(st.session_state.latest_master_file),
-#                 mime="text/csv"
+#                 mime="text/csv",
+#                 use_container_width=True,
 #             )
-    
-#     with col2:
-#         zip_path_base = os.path.join("Data", "All_Resident_Reports")
-#         zip_file_full = zip_path_base + ".zip"
-#         if os.path.exists(zip_file_full):
-#             st.markdown("### 🗂️ Resident Reports")
-#             with open(zip_file_full, "rb") as zip_file:
-#                 st.download_button(
-#                     label="Download All Reports (ZIP)",
-#                     data=zip_file,
-#                     file_name="GroundSense_Resident_Reports.zip",
-#                     mime="application/zip",
-#                     type="primary"
+
+#     with col_dl2:
+#         st.info("### 🗂️ Generated Reports")
+#         report_list = st.session_state.get("generated_report_list", [])
+#         if report_list:
+#             st.caption(
+#                 f"{len(report_list)} report(s) generated in this run."
+#             )
+#             for idx, (site_name, report_path) in enumerate(report_list):
+#                 if os.path.exists(report_path):
+#                     with open(report_path, "rb") as rpt_file:
+#                         st.download_button(
+#                             label=f"📥 Download: {site_name}",
+#                             data=rpt_file,
+#                             file_name=os.path.basename(report_path),
+#                             mime="application/vnd.openxmlformats-officedocument"
+#                                  ".presentationml.presentation",
+#                             use_container_width=True,
+#                             key=f"dl_report_{idx}",
+#                         )
+#         else:
+#             st.caption("No reports were generated in this run.")
+
+# ###################
+# """
+# etl_manager.py — GroundSense Data Pipeline Manager
+
+# Updates from original:
+#   1. Imports NYSH colors from groundsense_config.py
+#   2. Generates static map images (matplotlib, dark style only) for each site
+#   3. Inserts map images into correct slides of the Resident Report PPTX template
+#   4. Fills in zone-based average Lead PPM values (backyard / front yard)
+
+# Template slide layout (6 pages, 0-indexed):
+#   Slide 0: Cover letter — replace "Address of Resident", "Name of Resident", "Date"
+#   Slide 1: Sample Collection Method — keep as-is
+#   Slide 2: Soil Report Summary — insert dark map (no basemap)
+#   Slide 3: Detailed Results — fill [###] with real PPM, insert map
+#   Slide 4: NY Soil Health info — keep as-is
+#   Slide 5: Lead level table & safety — keep as-is
+# """
+
+
+# import streamlit as st
+# import os
+# import sys
+# import glob
+# import re
+# import subprocess
+# import json
+# import math
+# import pandas as pd
+# import numpy as np
+# import matplotlib
+# matplotlib.use('Agg')
+# import matplotlib.pyplot as plt
+# import matplotlib.patches as mpatches
+# from matplotlib.patches import FancyBboxPatch
+# from pptx import Presentation
+# from pptx.util import Inches
+# from datetime import date
+
+# # Inject src to path so groundsense_config can be imported
+# sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
+
+# from groundsense_config import (
+#     get_nysh_category,
+#     NYSH_TIERS,
+#     NYSH_COLORS,
+#     calculate_coordinate,
+#     resolve_lod,
+# )
+
+# # ═══════════════════════════════════════════════
+# #  PAGE CONFIGURATION
+# # ═══════════════════════════════════════════════
+# st.set_page_config(page_title="GroundSense Pipeline", page_icon="⚙️", layout="wide")
+
+# # Initialize Session State
+# if 'pipeline_success' not in st.session_state:
+#     st.session_state.pipeline_success = False
+# if 'latest_master_file' not in st.session_state:
+#     st.session_state.latest_master_file = None
+# if 'reports_generated' not in st.session_state:
+#     st.session_state.reports_generated = 0
+# if 'generated_report_list' not in st.session_state:
+#     st.session_state.generated_report_list = []
+
+# # ═══════════════════════════════════════════════
+# #  MAP IMAGE GENERATOR (matplotlib) — DARK ONLY
+# # ═══════════════════════════════════════════════
+# def generate_map_image(site_config, master_df, output_path):
+#     """Generates a static dark-style PNG map image of a site's grid
+#     with NYSH coloring.  No light/white variant is produced."""
+#     anchor = site_config["anchor"]
+#     grid = site_config.get("grid_blocks", {})
+#     points = site_config.get("point_samples", {})
+
+#     # Ensure LeadPPM_Clean column exists (work on a copy to avoid side-effects)
+#     if 'LeadPPM_Clean' not in master_df.columns:
+#         master_df = master_df.copy()
+#         master_df['LeadPPM_Clean'] = master_df['LeadPPM'].apply(resolve_lod)
+
+#     def match_ppm(patterns):
+#         for pat in patterns:
+#             if not pat:
+#                 continue
+#             matches = master_df[master_df['SampleID'].str.contains(pat, case=False, na=False)]
+#             if not matches.empty:
+#                 avg = matches['LeadPPM_Clean'].mean()
+#                 if pd.notna(avg):
+#                     return avg
+#         return None
+
+#     # Dark style constants
+#     bg       = '#1a1c24'
+#     text_c   = 'white'
+#     edge_c   = 'white'
+
+#     fig, ax = plt.subplots(1, 1, figsize=(8, 7), facecolor=bg)
+#     ax.set_facecolor(bg)
+
+#     all_x, all_y = [], []
+
+#     for block_id, dims in grid.items():
+#         if block_id.startswith("_"):
+#             continue
+#         sx, sy = dims["sw_x"], dims["sw_y"]
+#         w = dims["ne_x"] - dims["sw_x"]
+#         h = dims["ne_y"] - dims["sw_y"]
+
+#         patterns = dims.get("sample_id_patterns", [])
+#         ppm = match_ppm(patterns)
+#         if ppm is None:
+#             ppm = dims.get("mock_ppm", 0)
+
+#         _label, color = get_nysh_category(ppm)
+
+#         rect = FancyBboxPatch(
+#             (sx, sy), w, h, boxstyle="round,pad=0.3",
+#             facecolor=color, edgecolor=edge_c, linewidth=1.5, alpha=0.8,
+#         )
+#         ax.add_patch(rect)
+
+#         cx, cy = sx + w / 2, sy + h / 2
+#         ax.text(cx, cy, block_id, ha='center', va='center',
+#                 fontsize=8, fontweight='bold', color='white',
+#                 bbox=dict(boxstyle='round,pad=0.15', facecolor='black', alpha=0.4))
+#         ax.text(cx, cy - h * 0.25, "{:.0f}".format(ppm),
+#                 ha='center', va='center', fontsize=7, color='white', alpha=0.9)
+
+#         all_x.extend([sx, sx + w])
+#         all_y.extend([sy, sy + h])
+
+#     # Point samples
+#     for pt_id, pt in points.items():
+#         if pt_id.startswith("_"):
+#             continue
+#         ox, oy = pt.get("offset_x", 0), pt.get("offset_y", 0)
+#         patterns = pt.get("sample_id_patterns", [])
+#         ppm = match_ppm(patterns)
+
+#         if ppm is not None:
+#             _label, color = get_nysh_category(ppm)
+#             ppm_str = "{:.0f}".format(ppm)
+#         else:
+#             color, ppm_str = "#808080", "?"
+
+#         ax.plot(ox, oy, 'o', markersize=10, color=color,
+#                 markeredgecolor=edge_c, markeredgewidth=1.5)
+#         ax.text(ox, oy + 2.5, pt_id, ha='center', va='bottom',
+#                 fontsize=6, color='#cccccc', fontstyle='italic')
+#         ax.text(ox, oy - 2.5, ppm_str, ha='center', va='top',
+#                 fontsize=6, color='white', fontweight='bold')
+#         all_x.append(ox)
+#         all_y.append(oy)
+
+#     # Anchor marker
+#     ax.plot(0, 0, marker='^', markersize=12, color='red',
+#             markeredgecolor=edge_c, markeredgewidth=1.5, zorder=10)
+#     ax.text(0, -3, "Anchor", ha='center', va='top',
+#             fontsize=7, color='red', fontweight='bold')
+
+#     if all_x and all_y:
+#         pad = 10
+#         ax.set_xlim(min(all_x) - pad, max(all_x) + pad)
+#         ax.set_ylim(min(all_y) - pad, max(all_y) + pad)
+
+#     ax.set_aspect('equal')
+#     ax.set_xlabel('East (ft)', color='#888888', fontsize=9)
+#     ax.set_ylabel('North (ft)', color='#888888', fontsize=9)
+#     ax.tick_params(colors='#666666', labelsize=7)
+#     for spine in ax.spines.values():
+#         spine.set_color('#333333')
+
+#     site_name = site_config.get("address", "Site")
+#     ax.set_title(f"{site_name} — Lead Contamination Map",
+#                  color=text_c, fontsize=12, fontweight='bold', pad=12)
+
+#     legend_patches = [mpatches.Patch(color=t["color"], label=t["label"])
+#                       for t in NYSH_TIERS]
+#     legend_patches.append(mpatches.Patch(color="#808080", label="No Data"))
+#     ax.legend(handles=legend_patches, loc='lower right', fontsize=6,
+#               framealpha=0.8, facecolor='#2a2d38', edgecolor='#444444',
+#               labelcolor='white')
+
+#     plt.tight_layout()
+#     plt.savefig(output_path, dpi=200, bbox_inches='tight',
+#                 facecolor=bg, edgecolor='none')
+#     plt.close()
+#     return output_path
+
+
+# # ═══════════════════════════════════════════════
+# #  ZONE-BASED PPM CALCULATOR
+# # ═══════════════════════════════════════════════
+# def compute_zone_averages(site_config, master_df):
+#     """Compute average Lead PPM for each zone (back, front, yard, transect).
+
+#     Returns dict, e.g. {"back": 542.3, "front": 718.1}
+#     """
+#     grid = site_config.get("grid_blocks", {})
+
+#     if 'LeadPPM_Clean' not in master_df.columns:
+#         master_df = master_df.copy()
+#         master_df['LeadPPM_Clean'] = master_df['LeadPPM'].apply(resolve_lod)
+
+#     zone_values = {}  # zone_name -> [ppm, ...]
+
+#     for block_id, dims in grid.items():
+#         if block_id.startswith("_"):
+#             continue
+#         zone = dims.get("zone", "yard")
+#         patterns = dims.get("sample_id_patterns", [])
+
+#         ppm = None
+#         for pat in patterns:
+#             if not pat:
+#                 continue
+#             matches = master_df[
+#                 master_df['SampleID'].str.contains(pat, case=False, na=False)
+#             ]
+#             if not matches.empty:
+#                 avg = matches['LeadPPM_Clean'].mean()
+#                 if pd.notna(avg):
+#                     ppm = avg
+#                     break
+
+#         if ppm is None:
+#             ppm = dims.get("mock_ppm")
+
+#         if ppm is not None and not (isinstance(ppm, float) and math.isnan(ppm)):
+#             zone_values.setdefault(zone, []).append(ppm)
+
+#     return {z: sum(v) / len(v) for z, v in zone_values.items() if v}
+
+
+# def format_zone_ppm(zone_averages):
+#     """Map zone averages to backyard_ppm / frontyard_ppm for template filling.
+
+#     Single-zone sites (yard, transect) map to backyard only.
+#     """
+#     result = {"backyard_ppm": None, "frontyard_ppm": None}
+#     for zone, avg in zone_averages.items():
+#         z = zone.lower()
+#         if z in ("back", "backyard"):
+#             result["backyard_ppm"] = round(avg)
+#         elif z in ("front", "frontyard", "front_yard"):
+#             result["frontyard_ppm"] = round(avg)
+#         elif z in ("yard", "transect"):
+#             result["backyard_ppm"] = round(avg)
+#     return result
+
+
+# # ═══════════════════════════════════════════════
+# #  REPORT GENERATION (PPTX)
+# # ═══════════════════════════════════════════════
+# def generate_pptx_reports(master_csv_path, template_path, output_dir,
+#                           site_db_path, site_configs_path):
+#     """Generate one PPTX resident report per site.
+
+#     Returns (report_count, list_of_output_paths).
+#     """
+#     df = pd.read_csv(master_csv_path)
+#     df = df[df['SampleID'].notna() & (df['SampleID'] != "")]
+#     df['LeadPPM_Clean'] = df['LeadPPM'].apply(resolve_lod)
+
+#     # Map SampleIDs → site addresses via the site database
+#     if os.path.exists(site_db_path):
+#         site_db = pd.read_csv(site_db_path, header=1, encoding='latin1')
+#         site_db['Address'] = site_db['Address'].ffill()
+#         site_mapping = dict(
+#             zip(site_db['SampleID'].dropna(), site_db['Address'].dropna())
+#         )
+#         df['SiteID'] = df['SampleID'].map(site_mapping).fillna(df['SampleID'])
+#     else:
+#         df['SiteID'] = df['SampleID']
+
+#     # Load site configs
+#     site_configs = {}
+#     if os.path.exists(site_configs_path):
+#         with open(site_configs_path, 'r') as f:
+#             raw = json.load(f)
+#         site_configs = {s["address"]: s for s in raw}
+
+#     site_averages = df.groupby('SiteID')['LeadPPM_Clean'].mean().reset_index()
+
+#     os.makedirs(output_dir, exist_ok=True)
+#     maps_dir = os.path.join(output_dir, "map_images")
+#     os.makedirs(maps_dir, exist_ok=True)
+
+#     report_count = 0
+#     generated_reports = []  # list of (site_id, filepath) tuples
+#     today_str = date.today().strftime("%m/%d/%Y")
+
+#     for _, row in site_averages.iterrows():
+#         site_id = str(row['SiteID'])
+#         site_avg = row['LeadPPM_Clean']
+#         if pd.isna(site_avg):
+#             continue
+
+#         # ── 1. Generate dark map image (only style) ──
+#         map_image_path = None
+#         if site_id in site_configs:
+#             safe_name = "".join(
+#                 c for c in site_id if c.isalnum() or c == ' '
+#             ).rstrip()
+#             map_image_path = os.path.join(maps_dir, f"map_{safe_name}.png")
+#             try:
+#                 generate_map_image(site_configs[site_id], df, map_image_path)
+#             except Exception as e:
+#                 st.warning(f"Could not generate map for {site_id}: {e}")
+#                 map_image_path = None
+
+#         # ── 2. Compute zone-based PPM ──
+#         zone_ppm = {"backyard_ppm": None, "frontyard_ppm": None}
+#         if site_id in site_configs:
+#             zone_ppm = format_zone_ppm(
+#                 compute_zone_averages(site_configs[site_id], df)
+#             )
+#         if zone_ppm["backyard_ppm"] is None:
+#             zone_ppm["backyard_ppm"] = round(site_avg)
+
+#         # ── 3. Open PPTX template ──
+#         try:
+#             prs = Presentation(template_path)
+#         except Exception as e:
+#             raise Exception(f"Failed to load PPTX template: {e}")
+
+#         # ── 4. Walk every slide & do text replacements ──
+#         for slide_idx, slide in enumerate(prs.slides):
+
+#             # --- Text replacements ---
+#             for shape in slide.shapes:
+#                 if not shape.has_text_frame:
+#                     continue
+#                 for paragraph in shape.text_frame.paragraphs:
+#                     for run in paragraph.runs:
+#                         txt = run.text
+
+#                         # Slide 0 — Cover letter
+#                         if "Name of Resident" in txt:
+#                             run.text = txt.replace(
+#                                 "Name of Resident",
+#                                 f"Resident at {site_id}",
+#                             )
+#                             txt = run.text
+#                         if "Address of Resident" in txt:
+#                             run.text = txt.replace("Address of Resident", site_id)
+#                             txt = run.text
+#                         # Replace standalone "Date" on the cover
+#                         if txt.strip() == "Date":
+#                             run.text = today_str
+#                             txt = run.text
+
+#                         # Slide 3 — Fill [###] PPM placeholders
+#                         if "[###]" in txt:
+#                             low = txt.lower()
+#                             if "backyard" in low or "back" in low:
+#                                 val = zone_ppm["backyard_ppm"]
+#                                 run.text = txt.replace(
+#                                     "[###]", str(val) if val else "N/A"
+#                                 )
+#                             elif "front" in low:
+#                                 val = zone_ppm["frontyard_ppm"]
+#                                 if val is not None:
+#                                     run.text = txt.replace("[###]", str(val))
+#                                 else:
+#                                     # No front yard → blank line
+#                                     run.text = ""
+#                             else:
+#                                 run.text = txt.replace(
+#                                     "[###]", str(round(site_avg))
+#                                 )
+#                             txt = run.text
+
+#                         # Legacy placeholder clean-up
+#                         if "Average Lead concentration (ppm)" in txt:
+#                             lbl, _ = get_nysh_category(site_avg)
+#                             run.text = txt.replace(
+#                                 "Average Lead concentration (ppm)",
+#                                 f"Average Lead: {site_avg:.1f} ppm — {lbl}",
+#                             )
+#                         for old_ph in (
+#                             "Visual map of property with color-coded zones",
+#                             "Highlight hotspots",
+#                             "Heat map of property (no basemap)",
+#                             "Heat map of property with basemap",
+#                         ):
+#                             if old_ph in run.text:
+#                                 run.text = run.text.replace(old_ph, "")
+
+#             # --- Image insertions (map) ---
+#             if map_image_path and os.path.exists(map_image_path):
+#                 try:
+#                     from PIL import Image as PILImage
+#                     img = PILImage.open(map_image_path)
+#                     img_aspect = img.width / img.height
+#                 except Exception:
+#                     img_aspect = 1.14  # fallback
+
+#                 # Slide 2 — "Soil Report Summary" → dark map, no basemap
+#                 # Banner "Map of Site" ends ~3.6", QR code starts ~6.2"
+#                 # Available space: roughly 3.6" to 6.0" = 2.4" tall
+#                 if slide_idx == 2:
+#                     max_w, max_h = 6.0, 2.8
+#                     if max_w / img_aspect > max_h:
+#                         w, h = max_h * img_aspect, max_h
+#                     else:
+#                         w, h = max_w, max_w / img_aspect
+#                     left = Inches((10.0 - w) / 2)
+#                     top  = Inches(3.8)
+#                     try:
+#                         slide.shapes.add_picture(
+#                             map_image_path, left, top,
+#                             width=Inches(w), height=Inches(h),
+#                         )
+#                     except Exception as e:
+#                         st.warning(
+#                             f"Map insert failed (slide 3) for {site_id}: {e}"
+#                         )
+
+#                 # Slide 3 — "Detailed Results" → map below PPM text
+#                 # Title + PPM lines end ~2.2", slide bottom ~7.0"
+#                 # Available: roughly 2.2" to 7.0" = 4.8" tall
+#                 if slide_idx == 3:
+#                     max_w, max_h = 7.0, 4.2
+#                     if max_w / img_aspect > max_h:
+#                         w, h = max_h * img_aspect, max_h
+#                     else:
+#                         w, h = max_w, max_w / img_aspect
+#                     left = Inches((10.0 - w) / 2)
+#                     top  = Inches(2.6)
+#                     try:
+#                         slide.shapes.add_picture(
+#                             map_image_path, left, top,
+#                             width=Inches(w), height=Inches(h),
+#                         )
+#                     except Exception as e:
+#                         st.warning(
+#                             f"Map insert failed (slide 4) for {site_id}: {e}"
+#                         )
+
+#         # ── 5. Save the report ──
+#         safe_filename = "".join(
+#             c for c in site_id if c.isalnum() or c == ' '
+#         ).rstrip()
+#         output_file = os.path.join(
+#             output_dir, f"Resident_Report_{safe_filename}.pptx"
+#         )
+#         prs.save(output_file)
+#         generated_reports.append((site_id, output_file))
+#         report_count += 1
+
+#     return report_count, generated_reports
+
+
+# # ═══════════════════════════════════════════════
+# #  UI: HEADER & INSTRUCTIONS
+# # ═══════════════════════════════════════════════
+# col_header, col_info = st.columns([2, 1])
+# with col_header:
+#     st.title("⚙️ Data Pipeline Manager")
+#     st.markdown("Automated ETL, spatial mapping, and resident report generation.")
+# with col_info:
+#     st.info(
+#         "💡 **Instructions:** Drag and drop your raw XRF `.csv` files below. "
+#         "The backend will parse the readings, append them to the Master Database, "
+#         "and automatically generate updated site reports."
+#     )
+
+# st.markdown("---")
+
+# # ═══════════════════════════════════════════════
+# #  UI: UPLOAD & PROCESS
+# # ═══════════════════════════════════════════════
+# st.subheader("1. Ingest Data")
+# uploaded_files = st.file_uploader(
+#     "Upload Raw XRF Chemistry Files", type=['csv'], accept_multiple_files=True
+# )
+
+# if st.button("🚀 Execute Data Pipeline", type="primary", use_container_width=True):
+#     if not uploaded_files:
+#         st.warning("⚠️ Please upload at least one chemistry CSV file to begin.")
+#     else:
+#         with st.status("Executing the Data Pipeline...", expanded=False) as status:
+#             try:
+#                 # 1. Save uploaded files
+#                 xrf_dir = os.path.join("data", "xrf_data")
+#                 os.makedirs(xrf_dir, exist_ok=True)
+#                 for f in uploaded_files:
+#                     with open(os.path.join(xrf_dir, f.name), "wb") as f_out:
+#                         f_out.write(f.read())
+
+#                 # 2. Run ETL script
+#                 result = subprocess.run(
+#                     ["python", "src/data.py"], capture_output=True, text=True
 #                 )
-                
+#                 if result.returncode != 0:
+#                     status.update(
+#                         label="Pipeline Failed during ETL process.", state="error"
+#                     )
+#                     st.error(f"Backend Error Output:\n{result.stderr}")
+#                     st.stop()
+
+#                 # 3. Locate Master Data
+#                 master_dir = os.path.join("data", "master_data")
+#                 master_files = glob.glob(
+#                     os.path.join(master_dir, 'Master_Data_v*.csv')
+#                 )
+#                 if not master_files:
+#                     status.update(
+#                         label="Failed to locate output Master Data.", state="error"
+#                     )
+#                     st.stop()
+
+#                 latest_master = max(
+#                     master_files,
+#                     key=lambda x: int(
+#                         re.search(r'_v(\d+)\.csv', x).group(1)
+#                         if re.search(r'_v(\d+)\.csv', x) else 0
+#                     ),
+#                 )
+#                 st.session_state.latest_master_file = latest_master
+
+#                 # 4. Generate Reports
+#                 template_path    = os.path.join("src", "Resident_Report_Template.pptx")
+#                 site_db_path     = os.path.join(
+#                     "data", "site_databases",
+#                     "XRF Site Analysis Database W SampleID(Sheet1).csv",
+#                 )
+#                 site_configs_path = os.path.join(
+#                     "data", "site_configs", "site_configs.json"
+#                 )
+#                 reports_dir  = os.path.join("data", "generated_reports")
+
+#                 if os.path.exists(template_path):
+#                     report_count, report_list = generate_pptx_reports(
+#                         st.session_state.latest_master_file,
+#                         template_path, reports_dir,
+#                         site_db_path, site_configs_path,
+#                     )
+#                     st.session_state.reports_generated = report_count
+#                     st.session_state.generated_report_list = report_list
+#                 else:
+#                     st.warning("⚠️ Template missing. Skipped report generation.")
+
+#                 status.update(
+#                     label="Pipeline Execution Complete!", state="complete"
+#                 )
+#                 st.session_state.pipeline_success = True
+
+#             except Exception as e:
+#                 status.update(label="Critical System Error", state="error")
+#                 st.error(f"An unexpected error occurred: {str(e)}")
+#                 st.session_state.pipeline_success = False
+
+# # ═══════════════════════════════════════════════
+# #  UI: RESULTS & EXPORT
+# # ═══════════════════════════════════════════════
+# if st.session_state.pipeline_success and st.session_state.latest_master_file:
 #     st.markdown("---")
-#     st.markdown("### 🗺️ Project Site Locations")
-#     try:
-#         master_df = pd.read_csv(st.session_state.latest_master_file)
-#         site_map = generate_site_map(master_df)
-#         st_folium(site_map, width=700, height=500)
-#     except Exception as e:
-#         st.error(f"Could not generate map. Error: {e}")
+#     st.subheader("2. Deployment Artifacts")
+
+#     # KPIs
+#     df_result = pd.read_csv(st.session_state.latest_master_file)
+#     kpi1, kpi2, kpi3 = st.columns(3)
+#     kpi1.metric("Total Records Processed", len(df_result))
+#     kpi2.metric(
+#         "Sites Evaluated",
+#         df_result['SampleID'].nunique() if 'SampleID' in df_result else "N/A",
+#     )
+#     kpi3.metric("Resident Reports Generated", st.session_state.reports_generated)
+
+#     st.write("")
+
+#     # Download Buttons
+#     col_dl1, col_dl2 = st.columns(2)
+#     with col_dl1:
+#         st.success("### 📊 Master Database")
+#         st.caption(
+#             f"File: `{os.path.basename(st.session_state.latest_master_file)}`"
+#         )
+#         with open(st.session_state.latest_master_file, "rb") as file:
+#             st.download_button(
+#                 label="📥 Download Master Data (CSV)",
+#                 data=file,
+#                 file_name=os.path.basename(st.session_state.latest_master_file),
+#                 mime="text/csv",
+#                 use_container_width=True,
+#             )
+
+#     with col_dl2:
+#         st.info("### 🗂️ Generated Reports")
+#         report_list = st.session_state.get("generated_report_list", [])
+#         if report_list:
+#             st.caption(
+#                 f"{len(report_list)} report(s) generated in this run."
+#             )
+#             for idx, (site_name, report_path) in enumerate(report_list):
+#                 if os.path.exists(report_path):
+#                     with open(report_path, "rb") as rpt_file:
+#                         st.download_button(
+#                             label=f"📥 Download: {site_name}",
+#                             data=rpt_file,
+#                             file_name=os.path.basename(report_path),
+#                             mime="application/vnd.openxmlformats-officedocument"
+#                                  ".presentationml.presentation",
+#                             use_container_width=True,
+#                             key=f"dl_report_{idx}",
+#                         )
+#         else:
+#             st.caption("No reports were generated in this run.")
+
+"""
+etl_manager.py — GroundSense Data Pipeline Manager
+
+Updates from original:
+  1. Imports NYSH colors from groundsense_config.py
+  2. Generates static map images (matplotlib, dark style only) for each site
+  3. Inserts map images into correct slides of the Resident Report PPTX template
+  4. Fills in zone-based average Lead PPM values (backyard / front yard)
+
+Template slide layout (6 pages, 0-indexed):
+  Slide 0: Cover letter — replace "Address of Resident", "Name of Resident", "Date"
+  Slide 1: Sample Collection Method — keep as-is
+  Slide 2: Soil Report Summary — insert dark map (no basemap)
+  Slide 3: Detailed Results — fill [###] with real PPM, insert map
+  Slide 4: NY Soil Health info — keep as-is
+  Slide 5: Lead level table & safety — keep as-is
+"""
+
 
 import streamlit as st
 import os
+import sys
 import glob
 import re
 import subprocess
-import shutil
+import json
+import math
 import pandas as pd
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.patches import FancyBboxPatch
 from pptx import Presentation
-import folium
-from streamlit_folium import st_folium
+from pptx.util import Inches
+from datetime import date
 
-# --- PAGE CONFIGURATION ---
-st.set_page_config(page_title="GroundSense Data Pipeline", page_icon="⚙️", layout="centered")
+# Inject src to path so groundsense_config can be imported
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 
-# --- INITIALIZE SESSION STATE MEMORY ---
+from groundsense_config import (
+    get_nysh_category,
+    NYSH_TIERS,
+    NYSH_COLORS,
+    calculate_coordinate,
+    resolve_lod,
+)
+
+# ═══════════════════════════════════════════════
+#  PAGE CONFIGURATION
+# ═══════════════════════════════════════════════
+st.set_page_config(page_title="GroundSense Pipeline", page_icon="⚙️", layout="wide")
+
+# Initialize Session State
 if 'pipeline_success' not in st.session_state:
     st.session_state.pipeline_success = False
 if 'latest_master_file' not in st.session_state:
     st.session_state.latest_master_file = None
+if 'reports_generated' not in st.session_state:
+    st.session_state.reports_generated = 0
+if 'generated_report_list' not in st.session_state:
+    st.session_state.generated_report_list = []
 
-st.title("⚙️ Data Pipeline Manager")
-st.markdown("Drag and drop your raw XRF analysis files here. The backend will automatically process the data, map the Sample IDs, and generate the newest version of the Master Data and Resident Reports.")
-st.markdown("---")
+# ═══════════════════════════════════════════════
+#  MAP IMAGE GENERATOR (matplotlib) — DARK ONLY
+# ═══════════════════════════════════════════════
+def generate_map_image(site_config, master_df, output_path):
+    """Generates a static dark-style PNG map image of a site's grid
+    with NYSH coloring.  No light/white variant is produced."""
+    anchor = site_config["anchor"]
+    grid = site_config.get("grid_blocks", {})
+    points = site_config.get("point_samples", {})
 
-# --- MAPPING FUNCTION (WITH NYSH HEAT THRESHOLDS) ---
-def generate_site_map(df):
-    """
-    Generates a map with color-coded heat markers based on NYSH lead thresholds.
-    """
-    if 'latitude' not in df.columns and 'Lat' in df.columns:
-        df = df.rename(columns={'Lat': 'latitude'})
-    if 'longitude' not in df.columns and 'Long' in df.columns:
-        df = df.rename(columns={'Long': 'longitude'})
+    # Ensure LeadPPM_Clean column exists (work on a copy to avoid side-effects)
+    if 'LeadPPM_Clean' not in master_df.columns:
+        master_df = master_df.copy()
+        master_df['LeadPPM_Clean'] = master_df['LeadPPM'].apply(resolve_lod)
 
-    # Initialize map at a central location (Buffalo/Western NY)
-    m = folium.Map(location=[42.8864, -78.8784], zoom_start=11, tiles="cartodbpositron")
-    
-    if 'latitude' in df.columns and 'longitude' in df.columns:
-        site_col = 'Address' if 'Address' in df.columns else 'SampleID' if 'SampleID' in df.columns else 'SiteID'
-        
-        # Ensure LeadPPM is numeric for the color logic
-        if 'LeadPPM' in df.columns:
-            df['LeadPPM_Numeric'] = pd.to_numeric(df['LeadPPM'], errors='coerce')
+    def match_ppm(patterns):
+        for pat in patterns:
+            if not pat:
+                continue
+            matches = master_df[master_df['SampleID'].str.contains(pat, case=False, na=False)]
+            if not matches.empty:
+                avg = matches['LeadPPM_Clean'].mean()
+                if pd.notna(avg):
+                    return avg
+        return None
+
+    # Dark style constants
+    bg       = '#1a1c24'
+    text_c   = 'white'
+    edge_c   = 'white'
+
+    fig, ax = plt.subplots(1, 1, figsize=(8, 7), facecolor=bg)
+    ax.set_facecolor(bg)
+
+    all_x, all_y = [], []
+
+    for block_id, dims in grid.items():
+        if block_id.startswith("_"):
+            continue
+        sx, sy = dims["sw_x"], dims["sw_y"]
+        w = dims["ne_x"] - dims["sw_x"]
+        h = dims["ne_y"] - dims["sw_y"]
+
+        patterns = dims.get("sample_id_patterns", [])
+        ppm = match_ppm(patterns)
+        if ppm is None:
+            ppm = dims.get("mock_ppm", 0)
+
+        _label, color = get_nysh_category(ppm)
+
+        rect = FancyBboxPatch(
+            (sx, sy), w, h, boxstyle="round,pad=0.3",
+            facecolor=color, edgecolor=edge_c, linewidth=1.5, alpha=0.8,
+        )
+        ax.add_patch(rect)
+
+        cx, cy = sx + w / 2, sy + h / 2
+        ax.text(cx, cy, block_id, ha='center', va='center',
+                fontsize=8, fontweight='bold', color='white',
+                bbox=dict(boxstyle='round,pad=0.15', facecolor='black', alpha=0.4))
+        ax.text(cx, cy - h * 0.25, "{:.0f}".format(ppm),
+                ha='center', va='center', fontsize=7, color='white', alpha=0.9)
+
+        all_x.extend([sx, sx + w])
+        all_y.extend([sy, sy + h])
+
+    # Point samples
+    for pt_id, pt in points.items():
+        if pt_id.startswith("_"):
+            continue
+        ox, oy = pt.get("offset_x", 0), pt.get("offset_y", 0)
+        patterns = pt.get("sample_id_patterns", [])
+        ppm = match_ppm(patterns)
+
+        if ppm is not None:
+            _label, color = get_nysh_category(ppm)
+            ppm_str = "{:.0f}".format(ppm)
         else:
-            df['LeadPPM_Numeric'] = 0
-            
-        # Group by site to get the average lead level for the whole property
-        site_groups = df.groupby(['latitude', 'longitude', site_col])['LeadPPM_Numeric'].mean().reset_index()
+            color, ppm_str = "#808080", "?"
 
-        # NYSH Threshold Color Mapping
-        def get_heat_color(ppm):
-            if pd.isna(ppm): return '#808080' # Gray for missing data
-            if ppm < 63: return '#2ecc71'     # Green (<63 ppm)
-            elif ppm < 100: return '#f1c40f'  # Yellow (63-99 ppm)
-            elif ppm < 200: return '#e67e22'  # Orange (100-199 ppm)
-            elif ppm < 400: return '#e74c3c'  # Red (200-399 ppm)
-            else: return '#8e44ad'            # Dark Red/Purple (400+ ppm)
+        ax.plot(ox, oy, 'o', markersize=10, color=color,
+                markeredgecolor=edge_c, markeredgewidth=1.5)
+        ax.text(ox, oy + 2.5, pt_id, ha='center', va='bottom',
+                fontsize=6, color='#cccccc', fontstyle='italic')
+        ax.text(ox, oy - 2.5, ppm_str, ha='center', va='top',
+                fontsize=6, color='white', fontweight='bold')
+        all_x.append(ox)
+        all_y.append(oy)
 
-        for _, row in site_groups.dropna(subset=['latitude', 'longitude']).iterrows():
-            site_name = row[site_col]
-            avg_lead = row['LeadPPM_Numeric']
-            heat_color = get_heat_color(avg_lead)
-            
-            # Create a glowing circle marker to act as a localized heatmap
-            folium.CircleMarker(
-                location=[row['latitude'], row['longitude']],
-                radius=10, # Size of the heat bubble
-                popup=f"<b>Site:</b> {site_name}<br><b>Avg Lead:</b> {avg_lead:.1f} ppm",
-                tooltip=f"{site_name} ({avg_lead:.1f} ppm)",
-                color=heat_color,
-                fill=True,
-                fill_color=heat_color,
-                fill_opacity=0.7
-            ).add_to(m)
-    else:
-        st.warning("⚠️ Could not find 'latitude' and 'longitude' columns in the Master Data to plot the map.")
-    
-    return m
+    # Anchor marker
+    ax.plot(0, 0, marker='^', markersize=12, color='red',
+            markeredgecolor=edge_c, markeredgewidth=1.5, zorder=10)
+    ax.text(0, -3, "Anchor", ha='center', va='top',
+            fontsize=7, color='red', fontweight='bold')
 
-# --- REPORT GENERATION FUNCTION ---
-def generate_pptx_reports(master_csv_path, template_path, output_dir, site_db_path):
+    if all_x and all_y:
+        pad = 10
+        ax.set_xlim(min(all_x) - pad, max(all_x) + pad)
+        ax.set_ylim(min(all_y) - pad, max(all_y) + pad)
+
+    ax.set_aspect('equal')
+    ax.set_xlabel('East (ft)', color='#888888', fontsize=9)
+    ax.set_ylabel('North (ft)', color='#888888', fontsize=9)
+    ax.tick_params(colors='#666666', labelsize=7)
+    for spine in ax.spines.values():
+        spine.set_color('#333333')
+
+    site_name = site_config.get("address", "Site")
+    ax.set_title(f"{site_name} — Lead Contamination Map",
+                 color=text_c, fontsize=12, fontweight='bold', pad=12)
+
+    legend_patches = [mpatches.Patch(color=t["color"], label=t["label"])
+                      for t in NYSH_TIERS]
+    legend_patches.append(mpatches.Patch(color="#808080", label="No Data"))
+    ax.legend(handles=legend_patches, loc='lower right', fontsize=6,
+              framealpha=0.8, facecolor='#2a2d38', edgecolor='#444444',
+              labelcolor='white')
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=200, bbox_inches='tight',
+                facecolor=bg, edgecolor='none')
+    plt.close()
+    return output_path
+
+
+# ═══════════════════════════════════════════════
+#  ZONE-BASED PPM CALCULATOR
+# ═══════════════════════════════════════════════
+def compute_zone_averages(site_config, master_df):
+    """Compute average Lead PPM for each zone (back, front, yard, transect).
+
+    Returns dict, e.g. {"back": 542.3, "front": 718.1}
+    """
+    grid = site_config.get("grid_blocks", {})
+
+    if 'LeadPPM_Clean' not in master_df.columns:
+        master_df = master_df.copy()
+        master_df['LeadPPM_Clean'] = master_df['LeadPPM'].apply(resolve_lod)
+
+    zone_values = {}  # zone_name -> [ppm, ...]
+
+    for block_id, dims in grid.items():
+        if block_id.startswith("_"):
+            continue
+        zone = dims.get("zone", "yard")
+        patterns = dims.get("sample_id_patterns", [])
+
+        ppm = None
+        for pat in patterns:
+            if not pat:
+                continue
+            matches = master_df[
+                master_df['SampleID'].str.contains(pat, case=False, na=False)
+            ]
+            if not matches.empty:
+                avg = matches['LeadPPM_Clean'].mean()
+                if pd.notna(avg):
+                    ppm = avg
+                    break
+
+        if ppm is None:
+            ppm = dims.get("mock_ppm")
+
+        if ppm is not None and not (isinstance(ppm, float) and math.isnan(ppm)):
+            zone_values.setdefault(zone, []).append(ppm)
+
+    return {z: sum(v) / len(v) for z, v in zone_values.items() if v}
+
+
+def format_zone_ppm(zone_averages):
+    """Map zone averages to backyard_ppm / frontyard_ppm for template filling.
+
+    Single-zone sites (yard, transect) map to backyard only.
+    """
+    result = {"backyard_ppm": None, "frontyard_ppm": None}
+    for zone, avg in zone_averages.items():
+        z = zone.lower()
+        if z in ("back", "backyard"):
+            result["backyard_ppm"] = round(avg)
+        elif z in ("front", "frontyard", "front_yard"):
+            result["frontyard_ppm"] = round(avg)
+        elif z in ("yard", "transect"):
+            result["backyard_ppm"] = round(avg)
+    return result
+
+
+# ═══════════════════════════════════════════════
+#  REPORT GENERATION (PPTX)
+# ═══════════════════════════════════════════════
+def generate_pptx_reports(master_csv_path, template_path, output_dir,
+                          site_db_path, site_configs_path):
+    """Generate one PPTX resident report **per site address** from site_configs.json.
+
+    Iterates over sites (addresses), NOT individual SampleIDs.
+    Each site's grid_blocks contain sample_id_patterns that link to master data.
+
+    Returns (report_count, list_of (site_address, filepath) tuples).
+    """
     df = pd.read_csv(master_csv_path)
     df = df[df['SampleID'].notna() & (df['SampleID'] != "")]
-    
-    if os.path.exists(site_db_path):
-        site_db = pd.read_csv(site_db_path, header=1, encoding='latin1') 
-        site_db['Address'] = site_db['Address'].ffill()
-        site_mapping = dict(zip(site_db['SampleID'].dropna(), site_db['Address'].dropna()))
-        df['SiteID'] = df['SampleID'].map(site_mapping).fillna(df['SampleID'])
-    else:
-        df['SiteID'] = df['SampleID']
-    
-    df['LeadPPM_Numeric'] = pd.to_numeric(df['LeadPPM'], errors='coerce')
-    site_averages = df.groupby('SiteID')['LeadPPM_Numeric'].mean().reset_index()
-    
+    df['LeadPPM_Clean'] = df['LeadPPM'].apply(resolve_lod)
+
+    # Load site configs — one report per site address
+    site_configs = {}
+    if os.path.exists(site_configs_path):
+        with open(site_configs_path, 'r') as f:
+            raw = json.load(f)
+        site_configs = {s["address"]: s for s in raw}
+
+    if not site_configs:
+        st.warning("⚠️ No site configurations found. Cannot generate reports.")
+        return 0, []
+
     os.makedirs(output_dir, exist_ok=True)
-    
-    for _, row in site_averages.iterrows():
-        site_id = str(row['SiteID'])
-        site_avg = row['LeadPPM_Numeric']
-        if pd.isna(site_avg): continue
-            
-        prs = Presentation(template_path)
-        for slide in prs.slides:
+    maps_dir = os.path.join(output_dir, "map_images")
+    os.makedirs(maps_dir, exist_ok=True)
+
+    report_count = 0
+    generated_reports = []
+    today_str = date.today().strftime("%m/%d/%Y")
+
+    for site_address, site_config in site_configs.items():
+
+        # ── 1. Compute zone averages for this site ──
+        zone_averages = compute_zone_averages(site_config, df)
+        zone_ppm = format_zone_ppm(zone_averages)
+
+        all_zone_vals = list(zone_averages.values())
+        if all_zone_vals:
+            site_avg = sum(all_zone_vals) / len(all_zone_vals)
+        else:
+            # No real data — use mock PPM for grid preview
+            mock_vals = [
+                b.get("mock_ppm", 0)
+                for b in site_config.get("grid_blocks", {}).values()
+                if b.get("mock_ppm") is not None
+            ]
+            site_avg = sum(mock_vals) / len(mock_vals) if mock_vals else None
+            if site_avg is None:
+                continue
+
+        if zone_ppm["backyard_ppm"] is None:
+            zone_ppm["backyard_ppm"] = round(site_avg)
+
+        # ── 2. Generate dark map image ──
+        safe_name = "".join(
+            c for c in site_address if c.isalnum() or c == ' '
+        ).rstrip()
+        map_image_path = os.path.join(maps_dir, f"map_{safe_name}.png")
+        try:
+            generate_map_image(site_config, df, map_image_path)
+        except Exception as e:
+            st.warning(f"Could not generate map for {site_address}: {e}")
+            map_image_path = None
+
+        # ── 3. Open PPTX template ──
+        try:
+            prs = Presentation(template_path)
+        except Exception as e:
+            raise Exception(f"Failed to load PPTX template: {e}")
+
+        # ── 4. Process each slide ──
+        for slide_idx, slide in enumerate(prs.slides):
+
             for shape in slide.shapes:
-                if not shape.has_text_frame: continue
+                if not shape.has_text_frame:
+                    continue
                 for paragraph in shape.text_frame.paragraphs:
                     for run in paragraph.runs:
-                        if "Name of Resident" in run.text: run.text = run.text.replace("Name of Resident", f"Resident at {site_id}")
-                        if "Address of Resident" in run.text: run.text = run.text.replace("Address of Resident", site_id)
-                        if "Average Lead concentration (ppm)" in run.text:
-                            formatted_lead = f"Average Lead: {site_avg:.1f} ppm"
-                            run.text = run.text.replace("Average Lead concentration (ppm)", formatted_lead)
-                                
-        safe_filename = "".join([c for c in site_id if c.isalpha() or c.isdigit() or c==' ']).rstrip()
-        output_file = os.path.join(output_dir, f"Resident_Report_{safe_filename}.pptx")
-        prs.save(output_file)
+                        txt = run.text
 
-# --- 1. FILE UPLOADER ---
-uploaded_files = st.file_uploader("Upload New XRF analysis CSVs", type=['csv'], accept_multiple_files=True)
+                        # Slide 0 — Cover letter
+                        if "Name of Resident" in txt:
+                            run.text = txt.replace(
+                                "Name of Resident",
+                                f"Resident at {site_address}",
+                            )
+                            txt = run.text
+                        if "Address of Resident" in txt:
+                            run.text = txt.replace(
+                                "Address of Resident", site_address
+                            )
+                            txt = run.text
+                        if txt.strip() == "Date":
+                            run.text = today_str
+                            txt = run.text
 
-# --- 2. PIPELINE EXECUTION ---
-if st.button("🚀 Process Data & Update Master", type="primary"):
-    if uploaded_files:
-        xrf_dir = os.path.join("Data", "xrf_data")
-        os.makedirs(xrf_dir, exist_ok=True)
-        
-        for f in uploaded_files:
-            file_path = os.path.join(xrf_dir, f.name)
-            with open(file_path, "wb") as f_out:
-                f_out.write(f.read())
-                
-        with st.spinner("Running background ETL pipeline..."):
-            result = subprocess.run(["python", "src/data.py"], capture_output=True, text=True)
-            
-        if result.returncode == 0:
-            st.success("🎉 Pipeline executed successfully!")
-            
-            master_dir = os.path.join("Data", "master_data")
-            master_files = glob.glob(os.path.join(master_dir, 'Master_Data_v*.csv'))
-            
-            if master_files:
-                def get_version(filename):
-                    match = re.search(r'_v(\d+)\.csv', filename)
-                    return int(match.group(1)) if match else 0
-                    
-                # Save the success state and file path to memory!
-                st.session_state.latest_master_file = max(master_files, key=get_version)
-                st.session_state.pipeline_success = True
-                
-                with st.spinner("Grouping samples by address and generating reports..."):
-                    template_path = os.path.join("src", "Resident_Report_Template.pptx") 
-                    site_db_path = os.path.join("Data", "site_databases", "XRF Site Analysis Database W SampleID(Sheet1).csv")
-                    reports_dir = os.path.join("Data", "generated_reports")
-                    zip_path_base = os.path.join("Data", "All_Resident_Reports")
-                    
-                    if os.path.exists(template_path):
-                        generate_pptx_reports(st.session_state.latest_master_file, template_path, reports_dir, site_db_path)
-                        shutil.make_archive(zip_path_base, 'zip', reports_dir)
-                        st.success("📄 Resident Reports generated successfully!")
+                        # Slide 3 — Fill [###] PPM
+                        if "[###]" in txt:
+                            low = txt.lower()
+                            if "backyard" in low or "back" in low:
+                                val = zone_ppm["backyard_ppm"]
+                                run.text = txt.replace(
+                                    "[###]", str(val) if val else "N/A"
+                                )
+                            elif "front" in low:
+                                val = zone_ppm["frontyard_ppm"]
+                                if val is not None:
+                                    run.text = txt.replace("[###]", str(val))
+                                else:
+                                    run.text = ""
+                            else:
+                                run.text = txt.replace(
+                                    "[###]", str(round(site_avg))
+                                )
+                            txt = run.text
+
+                        # Legacy placeholders
+                        if "Average Lead concentration (ppm)" in txt:
+                            lbl, _ = get_nysh_category(site_avg)
+                            run.text = txt.replace(
+                                "Average Lead concentration (ppm)",
+                                f"Average Lead: {site_avg:.1f} ppm — {lbl}",
+                            )
+                        for old_ph in (
+                            "Visual map of property with color-coded zones",
+                            "Highlight hotspots",
+                            "Heat map of property (no basemap)",
+                            "Heat map of property with basemap",
+                        ):
+                            if old_ph in run.text:
+                                run.text = run.text.replace(old_ph, "")
+
+            # --- Map image insertions ---
+            if map_image_path and os.path.exists(map_image_path):
+                try:
+                    from PIL import Image as PILImage
+                    img = PILImage.open(map_image_path)
+                    img_aspect = img.width / img.height
+                except Exception:
+                    img_aspect = 1.14
+
+                if slide_idx == 2:
+                    max_w, max_h = 6.0, 2.8
+                    if max_w / img_aspect > max_h:
+                        w, h = max_h * img_aspect, max_h
                     else:
-                        st.warning(f"⚠️ Template not found at {template_path}. Skipping report generation.")
-        else:
-            st.error("⚠️ Pipeline encountered an error. Please check your terminal for details.")
-            st.session_state.pipeline_success = False
-    else:
-        st.warning("Please upload at least one chemistry file first.")
+                        w, h = max_w, max_w / img_aspect
+                    left = Inches((10.0 - w) / 2)
+                    top = Inches(3.8)
+                    try:
+                        slide.shapes.add_picture(
+                            map_image_path, left, top,
+                            width=Inches(w), height=Inches(h),
+                        )
+                    except Exception as e:
+                        st.warning(f"Map insert failed (slide 3) for {site_address}: {e}")
 
-# --- 3. DISPLAY RESULTS (LOCKED IN MEMORY) ---
+                if slide_idx == 3:
+                    max_w, max_h = 7.0, 4.2
+                    if max_w / img_aspect > max_h:
+                        w, h = max_h * img_aspect, max_h
+                    else:
+                        w, h = max_w, max_w / img_aspect
+                    left = Inches((10.0 - w) / 2)
+                    top = Inches(2.6)
+                    try:
+                        slide.shapes.add_picture(
+                            map_image_path, left, top,
+                            width=Inches(w), height=Inches(h),
+                        )
+                    except Exception as e:
+                        st.warning(f"Map insert failed (slide 4) for {site_address}: {e}")
+
+        # ── 5. Save ──
+        output_file = os.path.join(
+            output_dir, f"Resident_Report_{safe_name}.pptx"
+        )
+        prs.save(output_file)
+        generated_reports.append((site_address, output_file))
+        report_count += 1
+
+    return report_count, generated_reports
+
+# ═══════════════════════════════════════════════
+#  UI: HEADER & INSTRUCTIONS
+# ═══════════════════════════════════════════════
+col_header, col_info = st.columns([2, 1])
+with col_header:
+    st.title("⚙️ Data Pipeline Manager")
+    st.markdown("Automated ETL, spatial mapping, and resident report generation.")
+with col_info:
+    st.info(
+        "💡 **Instructions:** Drag and drop your raw XRF `.csv` files below. "
+        "The backend will parse the readings, append them to the Master Database, "
+        "and automatically generate updated site reports."
+    )
+
+st.markdown("---")
+
+# ═══════════════════════════════════════════════
+#  UI: UPLOAD & PROCESS
+# ═══════════════════════════════════════════════
+st.subheader("1. Ingest Data")
+uploaded_files = st.file_uploader(
+    "Upload Raw XRF Chemistry Files", type=['csv'], accept_multiple_files=True
+)
+
+fresh_rebuild = st.checkbox(
+    "🔄 Fresh rebuild (clear old Master Data and reprocess all files)",
+    value=False,
+    help="Check this if you've updated data.py or the XRF Master Data Key "
+         "and need to regenerate everything from scratch.",
+)
+
+if st.button("🚀 Execute Data Pipeline", type="primary", use_container_width=True):
+    if not uploaded_files:
+        st.warning("⚠️ Please upload at least one chemistry CSV file to begin.")
+    else:
+        with st.status("Executing the Data Pipeline...", expanded=False) as status:
+            try:
+                # 1. Save uploaded files
+                xrf_dir = os.path.join("data", "xrf_data")
+                os.makedirs(xrf_dir, exist_ok=True)
+                for f in uploaded_files:
+                    with open(os.path.join(xrf_dir, f.name), "wb") as f_out:
+                        f_out.write(f.read())
+
+                # 1b. If fresh rebuild, clear old master data
+                if fresh_rebuild:
+                    master_dir = os.path.join("data", "master_data")
+                    if os.path.exists(master_dir):
+                        import shutil
+                        shutil.rmtree(master_dir)
+                    os.makedirs(master_dir, exist_ok=True)
+                    st.info("🗑️ Cleared old Master Data. Rebuilding from scratch.")
+
+                # 2. Run ETL script
+                result = subprocess.run(
+                    ["python", "src/data.py"], capture_output=True, text=True
+                )
+
+                # Show ETL output for transparency
+                if result.stdout.strip():
+                    st.code(result.stdout, language="text")
+
+                if result.returncode != 0:
+                    status.update(
+                        label="Pipeline Failed during ETL process.", state="error"
+                    )
+                    st.error(f"Backend Error Output:\n{result.stderr}")
+                    st.stop()
+
+                # 3. Locate Master Data
+                master_dir = os.path.join("data", "master_data")
+                master_files = glob.glob(
+                    os.path.join(master_dir, 'Master_Data_v*.csv')
+                )
+                if not master_files:
+                    status.update(
+                        label="Failed to locate output Master Data.", state="error"
+                    )
+                    st.stop()
+
+                latest_master = max(
+                    master_files,
+                    key=lambda x: int(
+                        re.search(r'_v(\d+)\.csv', x).group(1)
+                        if re.search(r'_v(\d+)\.csv', x) else 0
+                    ),
+                )
+                st.session_state.latest_master_file = latest_master
+
+                # 4. Generate Reports
+                template_path    = os.path.join("src", "Resident_Report_Template.pptx")
+                site_db_path     = os.path.join(
+                    "data", "site_databases",
+                    "XRF Site Analysis Database W SampleID(Sheet1).csv",
+                )
+                site_configs_path = os.path.join(
+                    "data", "site_configs", "site_configs.json"
+                )
+                reports_dir  = os.path.join("data", "generated_reports")
+
+                if os.path.exists(template_path):
+                    report_count, report_list = generate_pptx_reports(
+                        st.session_state.latest_master_file,
+                        template_path, reports_dir,
+                        site_db_path, site_configs_path,
+                    )
+                    st.session_state.reports_generated = report_count
+                    st.session_state.generated_report_list = report_list
+                else:
+                    st.warning("⚠️ Template missing. Skipped report generation.")
+
+                status.update(
+                    label="Pipeline Execution Complete!", state="complete"
+                )
+                st.session_state.pipeline_success = True
+
+            except Exception as e:
+                status.update(label="Critical System Error", state="error")
+                st.error(f"An unexpected error occurred: {str(e)}")
+                st.session_state.pipeline_success = False
+
+# ═══════════════════════════════════════════════
+#  UI: RESULTS & EXPORT
+# ═══════════════════════════════════════════════
 if st.session_state.pipeline_success and st.session_state.latest_master_file:
     st.markdown("---")
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### 📊 Master Data")
+    st.subheader("2. Deployment Artifacts")
+
+    # KPIs
+    df_result = pd.read_csv(st.session_state.latest_master_file)
+    kpi1, kpi2, kpi3 = st.columns(3)
+    kpi1.metric("Total Records Processed", len(df_result))
+    filled_ids = df_result[
+        df_result['SampleID'].notna() & (df_result['SampleID'] != "")
+    ] if 'SampleID' in df_result.columns else pd.DataFrame()
+    kpi2.metric("Sites Evaluated", filled_ids['SampleID'].nunique() if len(filled_ids) else 0)
+    kpi3.metric("Resident Reports Generated", st.session_state.reports_generated)
+
+    st.write("")
+
+    # Download Buttons
+    col_dl1, col_dl2 = st.columns(2)
+    with col_dl1:
+        st.success("### 📊 Master Database")
+        st.caption(
+            f"File: `{os.path.basename(st.session_state.latest_master_file)}`"
+        )
         with open(st.session_state.latest_master_file, "rb") as file:
             st.download_button(
-                label=f"Download Master Data ({os.path.basename(st.session_state.latest_master_file)})",
+                label="📥 Download Master Data (CSV)",
                 data=file,
                 file_name=os.path.basename(st.session_state.latest_master_file),
-                mime="text/csv"
+                mime="text/csv",
+                use_container_width=True,
             )
-    
-    with col2:
-        zip_path_base = os.path.join("Data", "All_Resident_Reports")
-        zip_file_full = zip_path_base + ".zip"
-        if os.path.exists(zip_file_full):
-            st.markdown("### 🗂️ Resident Reports")
-            with open(zip_file_full, "rb") as zip_file:
-                st.download_button(
-                    label="Download All Reports (ZIP)",
-                    data=zip_file,
-                    file_name="GroundSense_Resident_Reports.zip",
-                    mime="application/zip",
-                    type="primary"
-                )
-                
-    st.markdown("---")
-    st.markdown("### 🗺️ Project Site Locations")
-    try:
-        master_df = pd.read_csv(st.session_state.latest_master_file)
-        site_map = generate_site_map(master_df)
-        st_folium(site_map, width=700, height=500)
-    except Exception as e:
-        st.error(f"Could not generate map. Error: {e}")
+
+    with col_dl2:
+        st.info("### 🗂️ Generated Reports")
+        report_list = st.session_state.get("generated_report_list", [])
+        if report_list:
+            st.caption(
+                f"{len(report_list)} report(s) generated in this run."
+            )
+            for idx, (site_name, report_path) in enumerate(report_list):
+                if os.path.exists(report_path):
+                    with open(report_path, "rb") as rpt_file:
+                        st.download_button(
+                            label=f"📥 Download: {site_name}",
+                            data=rpt_file,
+                            file_name=os.path.basename(report_path),
+                            mime="application/vnd.openxmlformats-officedocument"
+                                 ".presentationml.presentation",
+                            use_container_width=True,
+                            key=f"dl_report_{idx}",
+                        )
+        else:
+            st.caption("No reports were generated in this run.")
