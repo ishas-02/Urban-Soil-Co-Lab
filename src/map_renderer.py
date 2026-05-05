@@ -197,7 +197,7 @@ def render_leaflet_html(site_config, master_df, show_numbers=False,
     Parameters
     ----------
     site_config : dict
-        Single-site config entry (not the whole dict keyed by address).
+        Single-site config entry (not the whole dict keyed by site_id).
     master_df : pd.DataFrame
         Master data with SampleID and LeadPPM columns.
     show_numbers : bool
@@ -213,7 +213,7 @@ def render_leaflet_html(site_config, master_df, show_numbers=False,
     """
     anchor = site_config["anchor"]
     rotation_deg = site_config.get("rotation_deg", 0) or 0
-    address = site_config.get("address", "Site")
+    site_id = site_config.get("site_id", "Site")
 
     blocks, points = get_block_data(
         site_config, master_df, use_mock_fallback=use_mock_fallback
@@ -259,7 +259,7 @@ def render_leaflet_html(site_config, master_df, show_numbers=False,
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{address}_Soil Lead Screening Map</title>
+<title>{site_id}_Soil Lead Screening Map</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -297,7 +297,7 @@ body{{margin:0;font-family:Arial,sans-serif}}
   background:rgba(12,15,20,0.9);color:#e67e22;cursor:pointer;font-size:11px;
   font-weight:bold;transition:opacity 0.3s}}
 </style></head><body>
-<div class="title-bar"><b>{address}_Soil Lead Screening Map</b>
+<div class="title-bar"><b>{site_id}_Soil Lead Screening Map</b>
 <span class="meta">{title_meta}</span></div>
 <div id="map"></div>
 <div class="legend"><b>Lead Guidelines (ppm)</b><br>{legend_rows}</div>
@@ -455,7 +455,7 @@ def render_static_png(site_config, master_df, output_path,
     """
     anchor = site_config["anchor"]
     rotation_deg = site_config.get("rotation_deg", 0) or 0
-    address = site_config.get("address", "Site")
+    site_id = site_config.get("site_id", "Site")
 
     blocks, points = get_block_data(
         site_config, master_df, use_mock_fallback=use_mock_fallback
@@ -555,7 +555,7 @@ def render_static_png(site_config, master_df, output_path,
         spine.set_color("#333333")
 
     ax.set_title(
-        f"{address}_Soil Lead Screening Map",
+        f"{site_id}_Soil Lead Screening Map",
         color=text_c, fontsize=13, fontweight="bold", pad=14,
     )
 
