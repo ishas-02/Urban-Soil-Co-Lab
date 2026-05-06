@@ -377,7 +377,7 @@ if st.button("🚀 Execute Data Pipeline", type="primary", use_container_width=T
  
                 # 1b. If fresh rebuild, clear old master data
                 if fresh_rebuild:
-                    master_dir = os.path.join("data", "XRF_Soil_chem")
+                    master_dir = os.path.join("data", "XRF_Chemistry")
                     if os.path.exists(master_dir):
                         import shutil
                         shutil.rmtree(master_dir)
@@ -401,9 +401,9 @@ if st.button("🚀 Execute Data Pipeline", type="primary", use_container_width=T
                     st.stop()
  
                 # 3. Locate Master Data
-                master_dir = os.path.join("data", "XRF_Soil_chem")
+                master_dir = os.path.join("data", "XRF_Chemistry")
                 master_files = glob.glob(
-                    os.path.join(master_dir, 'XRF_Soil_chem_v*.csv')
+                    os.path.join(master_dir, 'XRF_Chemistry_V*.csv')
                 )
                 if not master_files:
                     status.update(
@@ -414,8 +414,8 @@ if st.button("🚀 Execute Data Pipeline", type="primary", use_container_width=T
                 latest_master = max(
                     master_files,
                     key=lambda x: int(
-                        re.search(r'_v(\d+)\.csv', x).group(1)
-                        if re.search(r'_v(\d+)\.csv', x) else 0
+                        re.search(r'_V(\d+)\.csv$', x, re.IGNORECASE).group(1)
+                        if re.search(r'_V(\d+)\.csv$', x, re.IGNORECASE) else 0
                     ),
                 )
                 st.session_state.latest_master_file = latest_master

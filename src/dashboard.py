@@ -145,7 +145,7 @@ def load_chemistry_data():
 def _load_sample_to_site_mapping():
     """Build SampleID -> SiteID mapping from the field CSV.
 
-    Reads `data/site_databases/SiteID_SampleID_List.csv` (written by
+    Reads `data/site_databases/SiteID_SampleID.csv` (written by
     field_entry.py) which is a plain single-header CSV with just
     SiteID + SampleID columns — no PII.
 
@@ -155,8 +155,16 @@ def _load_sample_to_site_mapping():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     field_path = os.path.join(
         base_dir, '..', 'data', 'site_databases',
-        'SiteID_SampleID_List.csv'
+        'SiteID_SampleID.csv'
     )
+    # Backward compat: fall back to the legacy filename if present.
+    if not os.path.exists(field_path):
+        legacy_path = os.path.join(
+            base_dir, '..', 'data', 'site_databases',
+            'SiteID_SampleID_List.csv'
+        )
+        if os.path.exists(legacy_path):
+            field_path = legacy_path
     if not os.path.exists(field_path):
         return {}
 
@@ -187,13 +195,13 @@ def _load_sample_to_site_mapping():
 @st.cache_data
 def load_master_data():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    master_dir = os.path.join(base_dir, '..', 'data', 'XRF_Soil_chem')
-    master_files = glob.glob(os.path.join(master_dir, 'XRF_Soil_chem_v*.csv'))
+    master_dir = os.path.join(base_dir, '..', 'data', 'XRF_Chemistry')
+    master_files = glob.glob(os.path.join(master_dir, 'XRF_Chemistry_V*.csv'))
     if not master_files:
         return pd.DataFrame()
  
     def get_version(fn):
-        m = re.search(r'_v(\d+)\.csv', fn)
+        m = re.search(r'_V(\d+)\.csv$', fn, re.IGNORECASE)
         return int(m.group(1)) if m else 0
  
     latest = max(master_files, key=get_version)
@@ -501,9 +509,10 @@ def _render_reconciliation_panel(master_df: pd.DataFrame) -> None:
     with st.expander(header, expanded=expanded_default):
         st.caption(
             "Rows in **red** disagree on LeadPPM between the chem file "
-            "(`XRF_Soil_chem_v*.csv`) and the site lab file "
-            "(`Site_Lab_Data.csv`). Rows in **yellow** are waiting for "
-            "the other side of the comparison to be entered."
+            "(`XRF_Chemistry_V*.csv`) and the technician files "
+            "(`XRF_Technician_Site.csv` / `XRF_Technician_Clinic.csv`). "
+            "Rows in **yellow** are waiting for the other side of the "
+            "comparison to be entered."
         )
 
         # Show only the rows that need attention — matches are uninformative here.

@@ -50,17 +50,17 @@ from map_renderer import (
 # ═══════════════════════════════════════════════
 @st.cache_data
 def load_master_data():
-    """Load the latest XRF_Soil_chem_v*.csv for looking up real Lead PPM
+    """Load the latest XRF_Chemistry_V*.csv for looking up real Lead PPM
     values when rendering the exported maps. Returns empty df if missing.
     """
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    master_dir = os.path.join(base_dir, "..", "data", "XRF_Soil_chem")
-    master_files = glob.glob(os.path.join(master_dir, "XRF_Soil_chem_v*.csv"))
+    master_dir = os.path.join(base_dir, "..", "data", "XRF_Chemistry")
+    master_files = glob.glob(os.path.join(master_dir, "XRF_Chemistry_V*.csv"))
     if not master_files:
         return pd.DataFrame(columns=["SampleID", "LeadPPM", "LeadPPM_Clean"])
 
     def _ver(fn):
-        m = re.search(r"_v(\d+)\.csv", fn)
+        m = re.search(r"_V(\d+)\.csv$", fn, re.IGNORECASE)
         return int(m.group(1)) if m else 0
 
     latest = max(master_files, key=_ver)
@@ -126,6 +126,80 @@ def load_existing_config_for_site_id(site_id, config_path):
     return None
 
 
+def list_existing_site_ids(config_path):
+    """Return a list of all SiteIDs currently saved in site_configs.json.
+
+    Returns [] if the file is missing or unreadable. Order matches the
+    file order (which is roughly creation order).
+    """
+    if not os.path.exists(config_path):
+        return []
+    try:
+        with open(config_path, 'r') as f:
+            existing = json.load(f)
+        return [s.get("site_id", "") for s in existing if s.get("site_id")]
+    except Exception:
+        return []
+
+
+# ═══════════════════════════════════════════════
+#  LOAD EXISTING SITE (search/edit existing maps)
+# ═══════════════════════════════════════════════
+st.subheader("🔍 Load Existing Site")
+st.caption(
+    "Pick a previously-saved site to load it into the draggable preview. "
+    "You can re-position or rotate the grid and **Save** to update its "
+    "config in place. Leave this empty if you're creating a brand-new site."
+)
+
+_base_dir_top = os.path.dirname(os.path.abspath(__file__))
+_config_path_top = os.path.join(
+    _base_dir_top, "..", "data", "site_configs", "site_configs.json"
+)
+_existing_site_ids = list_existing_site_ids(_config_path_top)
+
+ec1, ec2 = st.columns([3, 1])
+with ec1:
+    selected_existing = st.selectbox(
+        "Existing SiteIDs",
+        options=["— select to load —"] + _existing_site_ids,
+        index=0,
+        key="existing_site_selector",
+        help="Sites are pulled from data/site_configs/site_configs.json.",
+    )
+with ec2:
+    load_clicked = st.button(
+        "📂 Load to Preview",
+        use_container_width=True,
+        disabled=(selected_existing == "— select to load —"),
+    )
+
+if load_clicked and selected_existing != "— select to load —":
+    cfg = load_existing_config_for_site_id(selected_existing, _config_path_top)
+    if cfg is None:
+        st.error(f"Could not find SiteID '{selected_existing}' in site_configs.json.")
+    else:
+        # Drop the loaded config straight into the draggable-preview slot.
+        # The preview block further down keys off `generated_config`, so this
+        # is all we need to do — the user lands on the same map UI they'd
+        # see right after clicking Compute.
+        st.session_state["generated_config"] = cfg
+        # Clear any stale drag-state from a previous edit.
+        st.session_state.pop("pending_offset_e", None)
+        st.session_state.pop("pending_offset_n", None)
+        st.session_state.pop("pending_rotation", None)
+        st.success(
+            f"✅ Loaded **{selected_existing}** "
+            f"({len(cfg.get('grid_blocks', {}))} blocks · "
+            f"{len(cfg.get('point_samples', {}))} point samples). "
+            f"Scroll down to the **Draggable Satellite Preview** to nudge it "
+            f"and **Save** to overwrite its config."
+        )
+        st.rerun()
+
+st.markdown("---")
+
+
 # ═══════════════════════════════════════════════
 #  STEP 1 — SITE INFORMATION
 # ═══════════════════════════════════════════════
@@ -133,7 +207,9 @@ st.subheader("① Site Information")
 st.caption(
     "SiteID is the canonical identifier for this site across the pipeline. "
     "Convention: use the sampling date in ISO form (YYYY-MM-DD). "
-    "Resident address/name/ZIP are PII and never stored here."
+    "Resident address/name/ZIP are PII and never stored here. "
+    "_(Steps ① – ⑦ are for building a **new** site from scratch — to edit "
+    "an existing one, use the dropdown above and skip to the preview.)_"
 )
 
 col_date, col_id = st.columns([1, 2])

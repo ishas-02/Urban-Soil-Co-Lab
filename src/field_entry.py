@@ -18,7 +18,7 @@ their defaults so the next sample can be entered immediately.
 
 Output
 ------
-Writes `<repo>/data/site_databases/SiteID_SampleID_List.csv` —
+Writes `<repo>/data/site_databases/SiteID_SampleID.csv` —
 columns: SiteID, SampleID. This is the format the dashboard reads.
 """
 
@@ -34,7 +34,7 @@ import streamlit as st
 #  CONSTANTS
 # ═══════════════════════════════════════════════
 COLUMNS = ["SiteID", "SampleID"]
-OUTPUT_FILENAME = "SiteID_SampleID_List.csv"
+OUTPUT_FILENAME = "SiteID_SampleID.csv"
 
 TIME_OPTIONS = ["AM", "PM", "Other"]
 POSITION_OPTIONS = ["Front", "Back", "Side", "Other"]

@@ -14,8 +14,8 @@ KEY DESIGN:
 
 Directory layout (relative to repo root):
   data/xrf_data/                ← raw chemistry CSVs
-  data/XRF_Soil_chem/           ← versioned XRF_Soil_chem_v*.csv output
-  data/site_databases/          ← XRF Master Data Key CSV
+  data/XRF_Chemistry/           ← versioned XRF_Chemistry_V*.csv output
+  data/site_databases/          ← Site_Master_Data.csv (the canonical key)
 """
 
 import pandas as pd
@@ -30,36 +30,37 @@ def generate_sequential_master_versions():
     # ── Folder configuration ──
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     input_dir    = os.path.join(base_dir, 'data', 'xrf_data')
-    output_dir   = os.path.join(base_dir, 'data', 'XRF_Soil_chem')
+    output_dir   = os.path.join(base_dir, 'data', 'XRF_Chemistry')
     # Preferred: the reconciled key produced by key_reconciler.py
     key_file     = os.path.join(
         base_dir, 'data', 'site_databases',
-        'XRF_Master_Data_KEY.csv'
+        'Site_Master_Data.csv'
     )
-    # Legacy fallback (kept for backward compat — to be removed)
-    key_file_alt = os.path.join(
-        base_dir, 'data', 'site_databases',
-        'XRF Master Data KEY (Experimental Formatting) 1-14-2025(Sheet1).csv'
-    )
+    # Legacy fallbacks (kept for backward compat — to be removed)
+    legacy_key_files = [
+        os.path.join(base_dir, 'data', 'site_databases', 'XRF_Master_Data_KEY.csv'),
+        os.path.join(
+            base_dir, 'data', 'site_databases',
+            'XRF Master Data KEY (Experimental Formatting) 1-14-2025(Sheet1).csv'
+        ),
+    ]
 
     os.makedirs(output_dir, exist_ok=True)
 
-    # ── 1. Load the XRF Master Data Key ──
+    # ── 1. Load the Site Master Data (canonical SampleID ↔ XRFID key) ──
     # This file is the single source of truth for XRFID → SampleID mapping.
-    key_path = key_file if os.path.exists(key_file) else key_file_alt
+    key_path = key_file
     if not os.path.exists(key_path):
-        # Try to find any key file in the directory
-        key_candidates = glob.glob(os.path.join(
-            base_dir, 'data', 'site_databases', 'XRF*Master*Data*KEY*.*csv'
-        ))
-        if key_candidates:
-            key_path = key_candidates[0]
+        for candidate in legacy_key_files:
+            if os.path.exists(candidate):
+                key_path = candidate
+                break
 
     if os.path.exists(key_path):
         key_df = pd.read_csv(key_path, encoding='latin1')
         # Normalise column names (strip whitespace)
         key_df.columns = key_df.columns.str.strip()
-        print(f"📖 Loaded XRF Master Data Key: {len(key_df)} entries "
+        print(f"📖 Loaded Site Master Data: {len(key_df)} entries "
               f"({key_df['SampleID'].nunique()} unique SampleIDs) "
               f"from {os.path.basename(key_path)}")
 
@@ -73,22 +74,22 @@ def generate_sequential_master_versions():
             key_df['SampleID'].dropna().astype(str),
         ))
     else:
-        print(f"⚠️  XRF Master Data Key not found. "
+        print(f"⚠️  Site Master Data not found. "
               f"Looked in: {os.path.dirname(key_file)}")
         print("   Without the key, no SampleID mapping or filtering is possible.")
-        print("   Place the key CSV in data/site_databases/")
+        print("   Place Site_Master_Data.csv in data/site_databases/")
         valid_xrfids = None
         xrfid_to_sample = {}
 
     # ── 2. Find the latest existing Master Data version ──
-    master_files = glob.glob(os.path.join(output_dir, 'XRF_Soil_chem_v*.csv'))
+    master_files = glob.glob(os.path.join(output_dir, 'XRF_Chemistry_V*.csv'))
 
     existing_xrfids = set()
     current_version = 0
 
     if master_files:
         def get_version_number(filename):
-            match = re.search(r'_v(\d+)\.csv', filename)
+            match = re.search(r'_V(\d+)\.csv$', filename, re.IGNORECASE)
             return int(match.group(1)) if match else 0
 
         latest_master_file = max(master_files, key=get_version_number)
@@ -191,7 +192,7 @@ def generate_sequential_master_versions():
             # ── Save new version ──
             current_version += 1
             output_filename = os.path.join(
-                output_dir, f'XRF_Soil_chem_v{current_version}.csv'
+                output_dir, f'XRF_Chemistry_V{current_version}.csv'
             )
             master_df.to_csv(output_filename, index=False)
 
@@ -213,9 +214,11 @@ def generate_sequential_master_versions():
               f"with {len(master_df)} total records.")
 
     # ── 6. Run the key reconciler ──
-    # Compares the latest XRF_Soil_chem_v*.csv against Site_Lab_Data.csv,
-    # writes status columns into both, and (when both sides agree) refreshes
-    # XRF_Master_Data_KEY.csv. Safe to run even if one side is missing.
+    # Compares the latest XRF_Chemistry_V*.csv against both
+    # XRF_Technician_Site.csv and XRF_Technician_Clinic.csv, writes status
+    # columns into all three, and (when each side has zero discrepancies)
+    # refreshes Site_Master_Data.csv / Clinic_Master_Data.csv.
+    # Safe to run even if one or both technician sides are missing.
     try:
         from key_reconciler import reconcile
     except ImportError:
