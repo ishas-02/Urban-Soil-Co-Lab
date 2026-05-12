@@ -33,11 +33,12 @@ def generate_sequential_master_versions():
     output_dir   = os.path.join(base_dir, 'data', 'XRF_Chemistry')
     # Preferred: the reconciled key produced by key_reconciler.py
     key_file     = os.path.join(
-        base_dir, 'data', 'site_databases',
-        'Site_Master_Data.csv'
+        base_dir, 'data', 'XRF_Technician_Site_Data',
+        'XRF_Technician_Site.csv'
     )
     # Legacy fallbacks (kept for backward compat — to be removed)
     legacy_key_files = [
+        os.path.join(base_dir, 'data', 'site_databases', 'Site_Master_Data.csv'),
         os.path.join(base_dir, 'data', 'site_databases', 'XRF_Master_Data_KEY.csv'),
         os.path.join(
             base_dir, 'data', 'site_databases',

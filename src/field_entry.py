@@ -85,15 +85,83 @@ def load_existing_rows(path: str) -> pd.DataFrame:
         return pd.DataFrame(columns=COLUMNS)
 
 
+# REPLACEMENT for write_field_csv in field_entry.py (lines 88-96)
+
 def write_field_csv(df: pd.DataFrame, path: str) -> None:
-    """Write df to disk as a plain single-header CSV with SiteID + SampleID."""
+    """Append session rows to the on-disk CSV without clobbering existing rows.
+
+    Re-reads disk right before writing, compares against the session
+    DataFrame on (SiteID, SampleID) tuples with replicate-count awareness,
+    and appends only the delta. This protects:
+      • Manually-prepended historical rows (your backfill case)
+      • Rows written by other Streamlit sessions while this one was open
+      • The replicate convention (3 identical rows per SampleID stay 3)
+
+    Writes atomically (tempfile + os.replace) so a crash or SharePoint
+    sync lock mid-write can't corrupt the file.
+    """
+    import tempfile, time
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    out = df.reindex(columns=COLUMNS).fillna("")
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(COLUMNS)
-        for _, row in out.iterrows():
-            writer.writerow([row.get(c, "") for c in COLUMNS])
+    session_rows = df.reindex(columns=COLUMNS).fillna("")
+
+    last_err = None
+    for attempt in range(5):
+        try:
+            on_disk = load_existing_rows(path)
+
+            # Replicate-aware delta: how many of each (SiteID, SampleID)
+            # pair does the session have that disk doesn't?
+            disk_counts = (
+                on_disk.groupby(COLUMNS).size()
+                if len(on_disk) else pd.Series(dtype=int)
+            )
+            sess_counts = (
+                session_rows.groupby(COLUMNS).size()
+                if len(session_rows) else pd.Series(dtype=int)
+            )
+
+            to_append = []
+            for key, n_sess in sess_counts.items():
+                n_disk = int(disk_counts.get(key, 0))
+                delta = int(n_sess) - n_disk
+                if delta > 0:
+                    site_id, sample_id = key
+                    to_append.extend(
+                        [{"SiteID": site_id, "SampleID": sample_id}] * delta
+                    )
+
+            if not to_append:
+                return  # Nothing new; leave disk untouched.
+
+            combined = pd.concat(
+                [on_disk, pd.DataFrame(to_append, columns=COLUMNS)],
+                ignore_index=True,
+            ).reindex(columns=COLUMNS).fillna("")
+
+            # Atomic write
+            dir_ = os.path.dirname(path)
+            fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", suffix=".csv", dir=dir_)
+            try:
+                with os.fdopen(fd, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(COLUMNS)
+                    for _, row in combined.iterrows():
+                        writer.writerow([row.get(c, "") for c in COLUMNS])
+                os.replace(tmp_path, path)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    try: os.remove(tmp_path)
+                    except OSError: pass
+                raise
+            return
+
+        except PermissionError as e:
+            last_err = e
+            time.sleep(0.5 * (2 ** attempt))
+    raise RuntimeError(
+        f"Could not write {path} after 5 attempts (likely SharePoint "
+        f"sync lock). Last error: {last_err}"
+    )
 
 
 # ═══════════════════════════════════════════════
