@@ -2052,6 +2052,14 @@ if "generated_config" in st.session_state:
         for yk, y in render_yards.items()
     })
 
+    # Use a per-site localStorage key so two sites don't trample each
+    # other's drag state in the same browser session. Strip characters
+    # that might confuse JS string concatenation.
+    site_id_for_storage = re.sub(
+        r"[^A-Za-z0-9_-]", "_",
+        config.get("site_id", "site")
+    )
+
     # Leaflet HTML component with PER-YARD drag + rotate + message bridge.
     # The JS keeps a state map keyed by yard, and click-detection figures
     # out which yard's blocks are under the cursor so drags are isolated.
@@ -2215,6 +2223,23 @@ if "generated_config" in st.session_state:
         rotation_deg:    STATE[yk].rot
       }};
     }});
+    // Persist to BOTH localStorage (for streamlit_js_eval to read on
+    // Python-side reruns — the message-bus is racy) AND postMessage
+    // (for any listener that's already wired up).
+    try {{
+      window.parent.localStorage.setItem(
+        'gs_drag_state_' + '{site_id_for_storage}',
+        JSON.stringify(payload.yards)
+      );
+    }} catch (e) {{
+      // Cross-origin localStorage access blocked — try this frame's own.
+      try {{
+        window.localStorage.setItem(
+          'gs_drag_state_' + '{site_id_for_storage}',
+          JSON.stringify(payload.yards)
+        );
+      }} catch (e2) {{ /* give up — postMessage still works */ }}
+    }}
     window.parent.postMessage(payload, '*');
   }}
 
@@ -2258,7 +2283,18 @@ if "generated_config" in st.session_state:
 
     components.html(component_html, height=580, scrolling=False)
 
-    # ── Bridge: read posted multi-yard state via streamlit_js_eval ────
+    # ──────────────────────────────────────────────────────────────────
+    # CAPTURE DRAG STATE — robust localStorage-based bridge
+    # ──────────────────────────────────────────────────────────────────
+    # The Leaflet iframe writes drag state to parent.localStorage on every
+    # nudge (see postState() in the JS above). On Python rerun, we read
+    # that localStorage key via streamlit_js_eval. This is rock-solid
+    # vs the postMessage approach which races on iframe load.
+    #
+    # If streamlit_js_eval is unavailable, fall back to manual number
+    # inputs. Either way, the final live_states[yk] feeds Save.
+    # ──────────────────────────────────────────────────────────────────
+
     try:
         from streamlit_js_eval import streamlit_js_eval
         bridge_available = True
@@ -2266,72 +2302,122 @@ if "generated_config" in st.session_state:
         bridge_available = False
 
     st.markdown("#### 💾 Save Fine-Tuned Position")
+    st.caption(
+        "After dragging in the map above, click **🔄 Capture Drag State** "
+        "to pull the live offsets into the inputs below. Then click **💾 Save** "
+        "to persist. You can also type values directly into the inputs."
+    )
 
     yard_keys_for_state = list(render_yards.keys())
 
-    # live_states: yard_key -> {"e": float, "n": float, "r": float}
-    live_states = {}
-
+    # ── Step 1: read whatever's in localStorage right now (auto on every rerun) ──
+    captured = {}
     if bridge_available:
-        posted_state = streamlit_js_eval(
-            js_expressions="""
-                (function() {
-                    if (!window._gs_state_multi) {
-                        window._gs_state_multi = {};
-                        window.addEventListener('message', function(ev) {
-                            if (ev.data && ev.data.type === 'groundsense_grid_state_multi') {
-                                window._gs_state_multi = ev.data.yards || {};
-                            }
-                        });
-                    }
-                    return JSON.stringify(window._gs_state_multi);
-                })()
+        storage_key = f"gs_drag_state_{site_id_for_storage}"
+        # Read from BOTH localStorage scopes (parent and iframe) — whichever
+        # the postState() write succeeded into. Return as JSON string.
+        raw = streamlit_js_eval(
+            js_expressions=f"""
+                (function() {{
+                    var k = '{storage_key}';
+                    var v = null;
+                    try {{ v = window.parent.localStorage.getItem(k); }} catch(e) {{}}
+                    if (!v) {{
+                        try {{ v = window.localStorage.getItem(k); }} catch(e) {{}}
+                    }}
+                    return v || '';
+                }})()
             """,
-            key="gs_bridge_multi",
+            key=f"gs_storage_read_{site_id_for_storage}",
             want_output=True,
         )
-        try:
-            state = json.loads(posted_state) if posted_state else {}
-        except Exception:
-            state = {}
+        if raw:
+            try:
+                captured = json.loads(raw)
+            except Exception:
+                captured = {}
 
-        for yk in yard_keys_for_state:
-            ys = state.get(yk) or {}
-            live_states[yk] = {
-                "e": float(ys.get("offset_east_ft", 0) or 0),
-                "n": float(ys.get("offset_north_ft", 0) or 0),
-                "r": float(ys.get("rotation_deg",
-                                   render_yards[yk]["rotation"]) or 0),
-            }
-
-        # Show a per-yard live readout.
-        readout_cols = st.columns(max(1, len(yard_keys_for_state)))
-        for i, yk in enumerate(yard_keys_for_state):
-            ls = live_states[yk]
-            with readout_cols[i]:
-                st.caption(
-                    f"**{yard_visuals[yk]['label']}**  \n"
-                    f"East: {ls['e']:+.2f} ft  ·  North: {ls['n']:+.2f} ft  ·  "
-                    f"Rotation: {ls['r']:+.1f}°"
-                )
-    else:
-        st.info(
-            "⚙️ For automatic drag-state capture, install `streamlit-js-eval`:  \n"
-            "`pip install streamlit-js-eval`  \n\n"
-            "Meanwhile, enter each yard's offsets manually below."
+    # ── Step 2: explicit Capture button (forces a re-read + writes into inputs) ──
+    # The bridge above runs on every rerun, but the Capture button is the
+    # tech's "I'm done dragging — pull values in NOW" handoff. Clicking it
+    # copies localStorage → session_state, so the inputs below show the
+    # captured values and Save reads them.
+    cap_col, status_col = st.columns([1, 3])
+    with cap_col:
+        capture_clicked = st.button(
+            "🔄 Capture Drag State",
+            use_container_width=True,
+            key="capture_drag_btn",
+            help="Pull the current drag/rotation from the map above into the inputs.",
         )
+    with status_col:
+        if captured:
+            parts = []
+            for yk in yard_keys_for_state:
+                c = captured.get(yk) or {}
+                e = c.get("offset_east_ft", 0) or 0
+                n = c.get("offset_north_ft", 0) or 0
+                r = c.get("rotation_deg", 0) or 0
+                parts.append(
+                    f"{yard_visuals[yk]['label']}: "
+                    f"{e:+.1f}E / {n:+.1f}N / {r:+.0f}°"
+                )
+            st.caption("🟢 Live drag state detected: " + "  ·  ".join(parts))
+        else:
+            st.caption(
+                "⚪ No drag state in browser storage yet. "
+                "Drag in the map above first, then click Capture."
+            )
+
+    # ── Step 3: per-yard editable inputs (the actual source of truth for Save) ──
+    # If Capture was clicked, copy localStorage values into the input keys
+    # BEFORE the widgets are instantiated. Streamlit reads from session_state
+    # on the next rerun, so this gets the values into the boxes.
+    if capture_clicked and captured:
         for yk in yard_keys_for_state:
-            st.markdown(f"**{yard_visuals[yk]['label']}**")
-            mc1, mc2, mc3 = st.columns(3)
-            live_states[yk] = {
-                "e": mc1.number_input("East offset (ft)", value=0.0, step=0.1,
-                                      key=f"manual_e_{yk}"),
-                "n": mc2.number_input("North offset (ft)", value=0.0, step=0.1,
-                                      key=f"manual_n_{yk}"),
-                "r": mc3.number_input("Rotation (°)",
-                                      value=float(render_yards[yk]["rotation"]),
-                                      step=1.0, key=f"manual_r_{yk}"),
-            }
+            c = captured.get(yk) or {}
+            st.session_state[f"in_e_{yk}"] = float(c.get("offset_east_ft", 0) or 0)
+            st.session_state[f"in_n_{yk}"] = float(c.get("offset_north_ft", 0) or 0)
+            st.session_state[f"in_r_{yk}"] = float(
+                c.get("rotation_deg", render_yards[yk]["rotation"]) or 0
+            )
+        st.rerun()
+
+    live_states = {}
+    if not bridge_available:
+        st.info(
+            "⚙️ For one-click drag capture, install `streamlit-js-eval`:  \n"
+            "`pip install streamlit-js-eval`  \n\n"
+            "Meanwhile, type each yard's drag offsets manually below."
+        )
+
+    for yk in yard_keys_for_state:
+        st.markdown(f"**{yard_visuals[yk]['label']}**")
+        mc1, mc2, mc3 = st.columns(3)
+        # Default values come from session_state (populated by Capture) or
+        # fall back to zero / the saved rotation. Number inputs read & write
+        # to session_state via their key.
+        default_e = float(st.session_state.get(f"in_e_{yk}", 0.0) or 0.0)
+        default_n = float(st.session_state.get(f"in_n_{yk}", 0.0) or 0.0)
+        default_r = float(
+            st.session_state.get(f"in_r_{yk}", render_yards[yk]["rotation"]) or 0.0
+        )
+        live_states[yk] = {
+            "e": mc1.number_input(
+                "East offset (ft)", value=default_e, step=0.1,
+                format="%.2f", key=f"in_e_{yk}",
+            ),
+            "n": mc2.number_input(
+                "North offset (ft)", value=default_n, step=0.1,
+                format="%.2f", key=f"in_n_{yk}",
+            ),
+            "r": mc3.number_input(
+                "Rotation (°)", value=default_r, step=1.0,
+                format="%.2f", key=f"in_r_{yk}",
+            ),
+        }
+
+    st.markdown("---")
 
     # Buttons
     sb1, sb2, _ = st.columns([2, 2, 3])
@@ -2467,6 +2553,35 @@ if "generated_config" in st.session_state:
             json.dump(existing, f, indent=2)
 
         st.session_state["generated_config"] = updated_config
+
+        # Clear the localStorage drag state so the next Save doesn't
+        # apply the same offset twice (the offset has been baked into
+        # the anchor lat/lon now).
+        if bridge_available:
+            try:
+                streamlit_js_eval(
+                    js_expressions=f"""
+                        (function() {{
+                            var k = 'gs_drag_state_{site_id_for_storage}';
+                            try {{ window.parent.localStorage.removeItem(k); }} catch(e) {{}}
+                            try {{ window.localStorage.removeItem(k); }} catch(e) {{}}
+                            return 'cleared';
+                        }})()
+                    """,
+                    key=f"gs_storage_clear_{site_id_for_storage}_{os.urandom(2).hex()}",
+                    want_output=False,
+                )
+            except Exception:
+                pass
+        # Reset the number-input session_state entries to zero so the
+        # post-save state matches the just-baked anchor (no further drag
+        # pending).
+        for yk in yard_keys_for_state:
+            st.session_state[f"in_e_{yk}"] = 0.0
+            st.session_state[f"in_n_{yk}"] = 0.0
+            st.session_state[f"in_r_{yk}"] = float(
+                live_states[yk].get("r", 0.0)
+            )
 
         # Build a friendly summary message.
         yards_saved = list((updated_config.get("yards") or {}).keys())
