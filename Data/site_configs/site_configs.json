@@ -925,7 +925,8 @@
         "mock_ppm": 1078
       }
     },
-    "point_samples": {}
+    "point_samples": {},
+    "rotation_deg": 0.0
   },
   {
     "site_id": "2025-07-08",
