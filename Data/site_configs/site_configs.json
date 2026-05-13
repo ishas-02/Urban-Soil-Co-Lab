@@ -1,0 +1,1908 @@
+[
+  {
+    "site_id": "2025-10-18",
+    "sampling_date": "2025-10-18",
+    "notes": "Backyard grid (1A-3D, no 2D) + front yard grid (F_1A-F_3B). Upper grid is backyard; lower grid is front yard. Separate draggable controls for each grid. Backyard labels remove _Utica; front yard labels keep F_ prefix.",
+    "anchor": {
+      "lat": 42.91130497,
+      "lon": -78.85637257,
+      "description": "Corner of porch \u2014 intersection of blocks 3D, 3C, and 2C \u00b7 visually nudged +2.87 E / -74.26 N ft",
+      "marker_label": "Porch Corner (Anchor)"
+    },
+    "map_defaults": {
+      "zoom_start": 21,
+      "center_offset_north_ft": 5,
+      "center_offset_east_ft": -5
+    },
+    "grid_blocks": {
+      "F_1A": {
+        "sw_x": -17,
+        "sw_y": -17.5,
+        "ne_x": -7.5,
+        "ne_y": -10,
+        "sample_id_patterns": [
+          "Front_PGH_1A",
+          "18Oct2025_Front_PGH_1A"
+        ],
+        "zone": "front",
+        "mock_ppm": 717,
+        "yard": "front",
+        "cell_id": "F_1A"
+      },
+      "F_1B": {
+        "sw_x": -17,
+        "sw_y": -25,
+        "ne_x": -7.5,
+        "ne_y": -17.5,
+        "sample_id_patterns": [
+          "Front_PGH_1B",
+          "front_PGH_1B"
+        ],
+        "zone": "front",
+        "mock_ppm": 473,
+        "yard": "front",
+        "cell_id": "F_1B"
+      },
+      "F_2A": {
+        "sw_x": -7.5,
+        "sw_y": -17.5,
+        "ne_x": 2,
+        "ne_y": -10,
+        "sample_id_patterns": [
+          "Front_PGH_2A",
+          "18Oct2025_Front_PGH_2A"
+        ],
+        "zone": "front",
+        "mock_ppm": 919,
+        "yard": "front",
+        "cell_id": "F_2A"
+      },
+      "F_2B": {
+        "sw_x": -7.5,
+        "sw_y": -25,
+        "ne_x": 2,
+        "ne_y": -17.5,
+        "sample_id_patterns": [
+          "Front_PGH_2B",
+          "18Oct2025_Front_PGH_2B"
+        ],
+        "zone": "front",
+        "mock_ppm": 556,
+        "yard": "front",
+        "cell_id": "F_2B"
+      },
+      "F_3A": {
+        "sw_x": 3,
+        "sw_y": -17.5,
+        "ne_x": 6,
+        "ne_y": -10,
+        "sample_id_patterns": [
+          "Front_PGH_3A"
+        ],
+        "zone": "front",
+        "mock_ppm": 708,
+        "yard": "front",
+        "cell_id": "F_3A"
+      },
+      "F_3B": {
+        "sw_x": 3,
+        "sw_y": -25,
+        "ne_x": 6,
+        "ne_y": -17.5,
+        "sample_id_patterns": [
+          "Front_PGH_3B"
+        ],
+        "zone": "front",
+        "mock_ppm": 0,
+        "yard": "front",
+        "cell_id": "F_3B"
+      },
+      "1A": {
+        "sw_x": -17,
+        "sw_y": 20,
+        "ne_x": -10,
+        "ne_y": 30,
+        "sample_id_patterns": [
+          "_Back_PGH_1A",
+          "18Oct2025_Back_PGH_1A"
+        ],
+        "zone": "back",
+        "mock_ppm": 707,
+        "yard": "back",
+        "cell_id": "1A"
+      },
+      "1B": {
+        "sw_x": -17,
+        "sw_y": 10,
+        "ne_x": -10,
+        "ne_y": 20,
+        "sample_id_patterns": [
+          "_Back_PGH_1B",
+          "18Oct2025_Back_PGH_1B"
+        ],
+        "zone": "back",
+        "mock_ppm": 1134,
+        "yard": "back",
+        "cell_id": "1B"
+      },
+      "1C": {
+        "sw_x": -17,
+        "sw_y": 0,
+        "ne_x": -10,
+        "ne_y": 10,
+        "sample_id_patterns": [
+          "_Back_PGH_1C",
+          "18Oct2025_Back_PGH_1C"
+        ],
+        "zone": "back",
+        "mock_ppm": 2118,
+        "yard": "back",
+        "cell_id": "1C"
+      },
+      "2A": {
+        "sw_x": -10,
+        "sw_y": 20,
+        "ne_x": 0,
+        "ne_y": 30,
+        "sample_id_patterns": [
+          "_Back_PGH_2A",
+          "18Oct2025_Back_PGH_2A"
+        ],
+        "zone": "back",
+        "mock_ppm": 339,
+        "yard": "back",
+        "cell_id": "2A"
+      },
+      "2B": {
+        "sw_x": -10,
+        "sw_y": 10,
+        "ne_x": 0,
+        "ne_y": 20,
+        "sample_id_patterns": [
+          "_Back_PGH_2B",
+          "18Oct2025_Back_PGH_2B"
+        ],
+        "zone": "back",
+        "mock_ppm": 700,
+        "yard": "back",
+        "cell_id": "2B"
+      },
+      "2C": {
+        "sw_x": -10,
+        "sw_y": 0,
+        "ne_x": 0,
+        "ne_y": 10,
+        "sample_id_patterns": [
+          "_Back_PGH_2C",
+          "18OOct2025_Back_PGH_2C"
+        ],
+        "zone": "back",
+        "mock_ppm": 1475,
+        "yard": "back",
+        "cell_id": "2C"
+      },
+      "3A": {
+        "sw_x": 0,
+        "sw_y": 20,
+        "ne_x": 10,
+        "ne_y": 30,
+        "sample_id_patterns": [
+          "_Back_PGH_3A",
+          "18Oct2025_Back_PGH_3A"
+        ],
+        "zone": "back",
+        "mock_ppm": 458,
+        "yard": "back",
+        "cell_id": "3A"
+      },
+      "3B": {
+        "sw_x": 0,
+        "sw_y": 10,
+        "ne_x": 10,
+        "ne_y": 20,
+        "sample_id_patterns": [
+          "_Back_PGH_3B",
+          "18Oct2025_Back_PGH_3B"
+        ],
+        "zone": "back",
+        "mock_ppm": 722,
+        "yard": "back",
+        "cell_id": "3B"
+      },
+      "3C": {
+        "sw_x": 0,
+        "sw_y": 0,
+        "ne_x": 10,
+        "ne_y": 10,
+        "sample_id_patterns": [
+          "_Back_PGH_3C",
+          "18Oct2025_Back_PGH_3C"
+        ],
+        "zone": "back",
+        "mock_ppm": 954,
+        "yard": "back",
+        "cell_id": "3C"
+      },
+      "3D": {
+        "sw_x": 0,
+        "sw_y": -6,
+        "ne_x": 10,
+        "ne_y": 0,
+        "sample_id_patterns": [
+          "_PGH_3D"
+        ],
+        "zone": "back",
+        "mock_ppm": 450,
+        "yard": "back",
+        "cell_id": "3D"
+      }
+    },
+    "point_samples": {},
+    "yards": {
+      "back": {
+        "anchor": {
+          "lat": 42.91149847,
+          "lon": -78.85637661,
+          "description": "Corner of porch \u2014 intersection of blocks 3D, 3C, and 2C \u00b7 visually nudged +1.79 E / -3.59 N ft",
+          "marker_label": "Porch Corner (Anchor)"
+        },
+        "rotation_deg": 0.0,
+        "grid_blocks": {
+          "1A": {
+            "sw_x": -17,
+            "sw_y": 20,
+            "ne_x": -10,
+            "ne_y": 30,
+            "sample_id_patterns": [
+              "_Back_PGH_1A",
+              "18Oct2025_Back_PGH_1A"
+            ],
+            "zone": "back",
+            "mock_ppm": 707,
+            "yard": "back",
+            "cell_id": "1A"
+          },
+          "1B": {
+            "sw_x": -17,
+            "sw_y": 10,
+            "ne_x": -10,
+            "ne_y": 20,
+            "sample_id_patterns": [
+              "_Back_PGH_1B",
+              "18Oct2025_Back_PGH_1B"
+            ],
+            "zone": "back",
+            "mock_ppm": 1134,
+            "yard": "back",
+            "cell_id": "1B"
+          },
+          "1C": {
+            "sw_x": -17,
+            "sw_y": 0,
+            "ne_x": -10,
+            "ne_y": 10,
+            "sample_id_patterns": [
+              "_Back_PGH_1C",
+              "18Oct2025_Back_PGH_1C"
+            ],
+            "zone": "back",
+            "mock_ppm": 2118,
+            "yard": "back",
+            "cell_id": "1C"
+          },
+          "2A": {
+            "sw_x": -10,
+            "sw_y": 20,
+            "ne_x": 0,
+            "ne_y": 30,
+            "sample_id_patterns": [
+              "_Back_PGH_2A",
+              "18Oct2025_Back_PGH_2A"
+            ],
+            "zone": "back",
+            "mock_ppm": 339,
+            "yard": "back",
+            "cell_id": "2A"
+          },
+          "2B": {
+            "sw_x": -10,
+            "sw_y": 10,
+            "ne_x": 0,
+            "ne_y": 20,
+            "sample_id_patterns": [
+              "_Back_PGH_2B",
+              "18Oct2025_Back_PGH_2B"
+            ],
+            "zone": "back",
+            "mock_ppm": 700,
+            "yard": "back",
+            "cell_id": "2B"
+          },
+          "2C": {
+            "sw_x": -10,
+            "sw_y": 0,
+            "ne_x": 0,
+            "ne_y": 10,
+            "sample_id_patterns": [
+              "_Back_PGH_2C",
+              "18OOct2025_Back_PGH_2C"
+            ],
+            "zone": "back",
+            "mock_ppm": 1475,
+            "yard": "back",
+            "cell_id": "2C"
+          },
+          "3A": {
+            "sw_x": 0,
+            "sw_y": 20,
+            "ne_x": 10,
+            "ne_y": 30,
+            "sample_id_patterns": [
+              "_Back_PGH_3A",
+              "18Oct2025_Back_PGH_3A"
+            ],
+            "zone": "back",
+            "mock_ppm": 458,
+            "yard": "back",
+            "cell_id": "3A"
+          },
+          "3B": {
+            "sw_x": 0,
+            "sw_y": 10,
+            "ne_x": 10,
+            "ne_y": 20,
+            "sample_id_patterns": [
+              "_Back_PGH_3B",
+              "18Oct2025_Back_PGH_3B"
+            ],
+            "zone": "back",
+            "mock_ppm": 722,
+            "yard": "back",
+            "cell_id": "3B"
+          },
+          "3C": {
+            "sw_x": 0,
+            "sw_y": 0,
+            "ne_x": 10,
+            "ne_y": 10,
+            "sample_id_patterns": [
+              "_Back_PGH_3C",
+              "18Oct2025_Back_PGH_3C"
+            ],
+            "zone": "back",
+            "mock_ppm": 954,
+            "yard": "back",
+            "cell_id": "3C"
+          },
+          "3D": {
+            "sw_x": 0,
+            "sw_y": -6,
+            "ne_x": 10,
+            "ne_y": 0,
+            "sample_id_patterns": [
+              "_PGH_3D"
+            ],
+            "zone": "back",
+            "mock_ppm": 450,
+            "yard": "back",
+            "cell_id": "3D"
+          }
+        },
+        "point_samples": {}
+      },
+      "front": {
+        "anchor": {
+          "lat": 42.91130497,
+          "lon": -78.85637257,
+          "description": "Corner of porch \u2014 intersection of blocks 3D, 3C, and 2C \u00b7 visually nudged +2.87 E / -74.26 N ft",
+          "marker_label": "Porch Corner (Anchor)"
+        },
+        "rotation_deg": 0.0,
+        "grid_blocks": {
+          "F_1A": {
+            "sw_x": -17,
+            "sw_y": -17.5,
+            "ne_x": -7.5,
+            "ne_y": -10,
+            "sample_id_patterns": [
+              "Front_PGH_1A",
+              "18Oct2025_Front_PGH_1A"
+            ],
+            "zone": "front",
+            "mock_ppm": 717,
+            "yard": "front",
+            "cell_id": "F_1A"
+          },
+          "F_1B": {
+            "sw_x": -17,
+            "sw_y": -25,
+            "ne_x": -7.5,
+            "ne_y": -17.5,
+            "sample_id_patterns": [
+              "Front_PGH_1B",
+              "front_PGH_1B"
+            ],
+            "zone": "front",
+            "mock_ppm": 473,
+            "yard": "front",
+            "cell_id": "F_1B"
+          },
+          "F_2A": {
+            "sw_x": -7.5,
+            "sw_y": -17.5,
+            "ne_x": 2,
+            "ne_y": -10,
+            "sample_id_patterns": [
+              "Front_PGH_2A",
+              "18Oct2025_Front_PGH_2A"
+            ],
+            "zone": "front",
+            "mock_ppm": 919,
+            "yard": "front",
+            "cell_id": "F_2A"
+          },
+          "F_2B": {
+            "sw_x": -7.5,
+            "sw_y": -25,
+            "ne_x": 2,
+            "ne_y": -17.5,
+            "sample_id_patterns": [
+              "Front_PGH_2B",
+              "18Oct2025_Front_PGH_2B"
+            ],
+            "zone": "front",
+            "mock_ppm": 556,
+            "yard": "front",
+            "cell_id": "F_2B"
+          },
+          "F_3A": {
+            "sw_x": 3,
+            "sw_y": -17.5,
+            "ne_x": 6,
+            "ne_y": -10,
+            "sample_id_patterns": [
+              "Front_PGH_3A"
+            ],
+            "zone": "front",
+            "mock_ppm": 708,
+            "yard": "front",
+            "cell_id": "F_3A"
+          },
+          "F_3B": {
+            "sw_x": 3,
+            "sw_y": -25,
+            "ne_x": 6,
+            "ne_y": -17.5,
+            "sample_id_patterns": [
+              "Front_PGH_3B"
+            ],
+            "zone": "front",
+            "mock_ppm": 0,
+            "yard": "front",
+            "cell_id": "F_3B"
+          }
+        },
+        "point_samples": {}
+      }
+    },
+    "rotation_deg": 0.0
+  },
+  {
+    "site_id": "2025-06-24",
+    "sampling_date": "2025-06-24",
+    "notes": "Vertical grid: H1 near house (south), A1-A3 far end (north). Fixed point at E1/F1/E2 corner. E1 has cutout at fixed point corner. E2/E3 bottom edge cut (walkway). F1/G1 right edge cut (walkway). H1 is rectangle 13.75x14ft.",
+    "anchor": {
+      "lat": 42.917925,
+      "lon": -78.8754556,
+      "description": "Fixed point at E1/F1/E2 corner \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft",
+      "marker_label": "Fixed Point (E1/F1/E2 corner)"
+    },
+    "map_defaults": {
+      "zoom_start": 20,
+      "center_offset_north_ft": 10,
+      "center_offset_east_ft": 5
+    },
+    "grid_blocks": {
+      "D1": {
+        "sw_x": -11.0,
+        "sw_y": 12.83,
+        "ne_x": 0.0,
+        "ne_y": 23.83,
+        "sample_id_patterns": [
+          "D1_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 300
+      },
+      "D2": {
+        "sw_x": 0.0,
+        "sw_y": 12.83,
+        "ne_x": 11.0,
+        "ne_y": 23.83,
+        "sample_id_patterns": [
+          "D2_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 300
+      },
+      "D3": {
+        "sw_x": 11.0,
+        "sw_y": 12.83,
+        "ne_x": 22.0,
+        "ne_y": 23.83,
+        "sample_id_patterns": [
+          "D3_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 300
+      },
+      "C1": {
+        "sw_x": -11.0,
+        "sw_y": 23.83,
+        "ne_x": 0.0,
+        "ne_y": 34.83,
+        "sample_id_patterns": [
+          "C1_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 300
+      },
+      "C2": {
+        "sw_x": 0.0,
+        "sw_y": 23.83,
+        "ne_x": 11.0,
+        "ne_y": 34.83,
+        "sample_id_patterns": [
+          "C2_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 300
+      },
+      "C3": {
+        "sw_x": 11.0,
+        "sw_y": 23.83,
+        "ne_x": 22.0,
+        "ne_y": 34.83,
+        "sample_id_patterns": [
+          "C3_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 300
+      },
+      "B1": {
+        "sw_x": -11.0,
+        "sw_y": 34.83,
+        "ne_x": 0.0,
+        "ne_y": 45.83,
+        "sample_id_patterns": [
+          "B1_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 300
+      },
+      "B2": {
+        "sw_x": 0.0,
+        "sw_y": 34.83,
+        "ne_x": 11.0,
+        "ne_y": 45.83,
+        "sample_id_patterns": [
+          "B2_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 300
+      },
+      "B3": {
+        "sw_x": 11.0,
+        "sw_y": 34.83,
+        "ne_x": 22.0,
+        "ne_y": 45.83,
+        "sample_id_patterns": [
+          "B3_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 300
+      },
+      "A1": {
+        "sw_x": -11.0,
+        "sw_y": 45.83,
+        "ne_x": 0.0,
+        "ne_y": 56.83,
+        "sample_id_patterns": [
+          "A1_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 300
+      },
+      "A2": {
+        "sw_x": 0.0,
+        "sw_y": 45.83,
+        "ne_x": 11.0,
+        "ne_y": 56.83,
+        "sample_id_patterns": [
+          "A2_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 300
+      },
+      "A3": {
+        "sw_x": 11.0,
+        "sw_y": 45.83,
+        "ne_x": 22.0,
+        "ne_y": 56.83,
+        "sample_id_patterns": [
+          "A3_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 300
+      },
+      "E1": {
+        "sw_x": -11.0,
+        "sw_y": 0,
+        "ne_x": 0,
+        "ne_y": 12.83,
+        "sample_id_patterns": [
+          "E1_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 299,
+        "_polygon": [
+          [
+            -11,
+            0
+          ],
+          [
+            -1.5,
+            0
+          ],
+          [
+            -1.5,
+            1.5
+          ],
+          [
+            0,
+            1.5
+          ],
+          [
+            0,
+            12.83
+          ],
+          [
+            -11,
+            12.83
+          ]
+        ]
+      },
+      "E2": {
+        "sw_x": 0,
+        "sw_y": 1.5,
+        "ne_x": 11,
+        "ne_y": 12.83,
+        "sample_id_patterns": [
+          "E2_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 446
+      },
+      "E3": {
+        "sw_x": 11,
+        "sw_y": 1.5,
+        "ne_x": 22,
+        "ne_y": 12.83,
+        "sample_id_patterns": [
+          "E3_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 520
+      },
+      "F1": {
+        "sw_x": -11.0,
+        "sw_y": -11.0,
+        "ne_x": -1.5,
+        "ne_y": 0,
+        "sample_id_patterns": [
+          "F1_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 447
+      },
+      "G1": {
+        "sw_x": -11.0,
+        "sw_y": -22.0,
+        "ne_x": -1.5,
+        "ne_y": -11.0,
+        "sample_id_patterns": [
+          "G1_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 472
+      },
+      "H1": {
+        "sw_x": -11.0,
+        "sw_y": -36.0,
+        "ne_x": 2.75,
+        "ne_y": -22.0,
+        "sample_id_patterns": [
+          "H1_PITT"
+        ],
+        "zone": "yard",
+        "mock_ppm": 569
+      }
+    },
+    "point_samples": {},
+    "rotation_deg": 0.0
+  },
+  {
+    "site_id": "2025-10-04",
+    "sampling_date": "2025-10-04",
+    "notes": "Horizontal grid. I1 near house (west), A1 far end (east). Fixed point at E2 corner. E2 has triangle cutout meeting D2 corner. I2 is half width of I1, same height as H2.",
+    "anchor": {
+      "lat": 42.91985,
+      "lon": -78.8260083,
+      "description": "Fixed point at E2 corner \u2014 field-measured GPS",
+      "marker_label": "Fixed Point (E2 corner)"
+    },
+    "map_defaults": {
+      "zoom_start": 21,
+      "center_offset_north_ft": 10,
+      "center_offset_east_ft": 0
+    },
+    "grid_blocks": {
+      "A1": {
+        "sw_x": 39.29,
+        "sw_y": 7.75,
+        "ne_x": 50.83,
+        "ne_y": 19.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_A1"
+        ],
+        "zone": "transect",
+        "mock_ppm": 1008
+      },
+      "B1": {
+        "sw_x": 27.75,
+        "sw_y": 7.75,
+        "ne_x": 39.29,
+        "ne_y": 19.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_B1"
+        ],
+        "zone": "transect",
+        "mock_ppm": 1040
+      },
+      "C1": {
+        "sw_x": 18.87,
+        "sw_y": 12.04,
+        "ne_x": 27.75,
+        "ne_y": 19.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_C1"
+        ],
+        "zone": "transect",
+        "mock_ppm": 627
+      },
+      "C2": {
+        "sw_x": 18.87,
+        "sw_y": 4.33,
+        "ne_x": 27.75,
+        "ne_y": 12.04,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_C2"
+        ],
+        "zone": "transect",
+        "mock_ppm": 678
+      },
+      "D1": {
+        "sw_x": 10.0,
+        "sw_y": 12.04,
+        "ne_x": 18.87,
+        "ne_y": 19.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_D1"
+        ],
+        "zone": "transect",
+        "mock_ppm": 605
+      },
+      "D2": {
+        "sw_x": 10.0,
+        "sw_y": 4.33,
+        "ne_x": 18.87,
+        "ne_y": 12.04,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_D2"
+        ],
+        "zone": "transect",
+        "mock_ppm": 560
+      },
+      "E1": {
+        "sw_x": 0.0,
+        "sw_y": 9.75,
+        "ne_x": 10.0,
+        "ne_y": 19.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_E1"
+        ],
+        "zone": "transect",
+        "mock_ppm": 436
+      },
+      "E2": {
+        "sw_x": 0.0,
+        "sw_y": 0.0,
+        "ne_x": 10.0,
+        "ne_y": 9.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_E2"
+        ],
+        "zone": "transect",
+        "mock_ppm": 748,
+        "_triangle_cutout": "bottom-right corner meeting D2 at (10, 4.33)"
+      },
+      "F1": {
+        "sw_x": -10.0,
+        "sw_y": 9.75,
+        "ne_x": 0.0,
+        "ne_y": 19.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_F1"
+        ],
+        "zone": "transect",
+        "mock_ppm": 546
+      },
+      "F2": {
+        "sw_x": -10.0,
+        "sw_y": 0.0,
+        "ne_x": 0.0,
+        "ne_y": 9.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_F2"
+        ],
+        "zone": "transect",
+        "mock_ppm": 371
+      },
+      "G1": {
+        "sw_x": -20.0,
+        "sw_y": 9.75,
+        "ne_x": -10.0,
+        "ne_y": 19.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_G1"
+        ],
+        "zone": "transect",
+        "mock_ppm": 619
+      },
+      "G2": {
+        "sw_x": -20.0,
+        "sw_y": 0.0,
+        "ne_x": -10.0,
+        "ne_y": 9.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_G2"
+        ],
+        "zone": "transect",
+        "mock_ppm": 594
+      },
+      "H1": {
+        "sw_x": -30.0,
+        "sw_y": 9.75,
+        "ne_x": -20.0,
+        "ne_y": 19.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_H1"
+        ],
+        "zone": "transect",
+        "mock_ppm": 684
+      },
+      "H2": {
+        "sw_x": -30.0,
+        "sw_y": 0.0,
+        "ne_x": -20.0,
+        "ne_y": 9.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_H2"
+        ],
+        "zone": "transect",
+        "mock_ppm": 800
+      },
+      "I1": {
+        "sw_x": -37.42,
+        "sw_y": 9.75,
+        "ne_x": -30.0,
+        "ne_y": 19.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_I1"
+        ],
+        "zone": "transect",
+        "mock_ppm": 875
+      },
+      "I2": {
+        "sw_x": -33.71,
+        "sw_y": 0.0,
+        "ne_x": -30.0,
+        "ne_y": 9.75,
+        "sample_id_patterns": [
+          "4Oct2025_AM_PGH_I2"
+        ],
+        "zone": "transect",
+        "mock_ppm": 1078
+      }
+    },
+    "point_samples": {}
+  },
+  {
+    "site_id": "2025-07-08",
+    "sampling_date": "2025-07-08",
+    "notes": "Horizontal 5x3 grid (A-E left to right, rows 1-3 bottom to top). All cells 10x10ft. GPS from Google Places (no field GPS yet).",
+    "anchor": {
+      "lat": 42.91967106,
+      "lon": -78.88491959,
+      "description": "Google Places coordinate (no field GPS yet) \u00b7 visually nudged -74.07 E / -19.37 N ft \u00b7 visually nudged +1.43 E / -1.79 N ft",
+      "marker_label": "102 Putnam St"
+    },
+    "map_defaults": {
+      "zoom_start": 21,
+      "center_offset_north_ft": 15,
+      "center_offset_east_ft": 25
+    },
+    "grid_blocks": {
+      "A1": {
+        "sw_x": 0.0,
+        "sw_y": 0.0,
+        "ne_x": 10.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 597
+      },
+      "A2": {
+        "sw_x": 0.0,
+        "sw_y": 10.0,
+        "ne_x": 10.0,
+        "ne_y": 20.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 570.3
+      },
+      "A3": {
+        "sw_x": 0.0,
+        "sw_y": 20.0,
+        "ne_x": 10.0,
+        "ne_y": 30.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 704
+      },
+      "B1": {
+        "sw_x": 10.0,
+        "sw_y": 0.0,
+        "ne_x": 20.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 678
+      },
+      "B2": {
+        "sw_x": 10.0,
+        "sw_y": 10.0,
+        "ne_x": 20.0,
+        "ne_y": 20.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 282
+      },
+      "B3": {
+        "sw_x": 10.0,
+        "sw_y": 20.0,
+        "ne_x": 20.0,
+        "ne_y": 30.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 432.3
+      },
+      "C1": {
+        "sw_x": 20.0,
+        "sw_y": 0.0,
+        "ne_x": 30.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 561.3
+      },
+      "C2": {
+        "sw_x": 20.0,
+        "sw_y": 10.0,
+        "ne_x": 30.0,
+        "ne_y": 20.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 314.3
+      },
+      "C3": {
+        "sw_x": 20.0,
+        "sw_y": 20.0,
+        "ne_x": 30.0,
+        "ne_y": 30.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 506
+      },
+      "D1": {
+        "sw_x": 30.0,
+        "sw_y": 0.0,
+        "ne_x": 40.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 674.7
+      },
+      "D2": {
+        "sw_x": 30.0,
+        "sw_y": 10.0,
+        "ne_x": 40.0,
+        "ne_y": 20.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 494.7
+      },
+      "D3": {
+        "sw_x": 30.0,
+        "sw_y": 20.0,
+        "ne_x": 40.0,
+        "ne_y": 30.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 722
+      },
+      "E1": {
+        "sw_x": 40.0,
+        "sw_y": 0.0,
+        "ne_x": 50.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 443
+      },
+      "E2": {
+        "sw_x": 40.0,
+        "sw_y": 10.0,
+        "ne_x": 50.0,
+        "ne_y": 20.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 581.3
+      },
+      "E3": {
+        "sw_x": 40.0,
+        "sw_y": 20.0,
+        "ne_x": 50.0,
+        "ne_y": 30.0,
+        "sample_id_patterns": [],
+        "zone": "yard",
+        "mock_ppm": 1017.2
+      }
+    },
+    "point_samples": {},
+    "rotation_deg": 0.0
+  },
+  {
+    "site_id": "2026-04-21",
+    "sampling_date": "2026-04-21",
+    "notes": "",
+    "anchor": {
+      "lat": 42.91985,
+      "lon": -78.82600833,
+      "description": "Fixed point at E1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft",
+      "marker_label": "Fixed Point (E1)"
+    },
+    "map_defaults": {
+      "zoom_start": 21,
+      "center_offset_north_ft": 0,
+      "center_offset_east_ft": 0
+    },
+    "rotation_deg": 0.0,
+    "grid_blocks": {
+      "A1": {
+        "sw_x": 0,
+        "sw_y": 40.0,
+        "ne_x": 10.0,
+        "ne_y": 50.0,
+        "sample_id_patterns": [
+          "A1_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "A2": {
+        "sw_x": 10.0,
+        "sw_y": 40.0,
+        "ne_x": 20.0,
+        "ne_y": 50.0,
+        "sample_id_patterns": [
+          "A2_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "A3": {
+        "sw_x": 20.0,
+        "sw_y": 40.0,
+        "ne_x": 30.0,
+        "ne_y": 50.0,
+        "sample_id_patterns": [
+          "A3_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "B1": {
+        "sw_x": 0,
+        "sw_y": 30.0,
+        "ne_x": 10.0,
+        "ne_y": 40.0,
+        "sample_id_patterns": [
+          "B1_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "B2": {
+        "sw_x": 10.0,
+        "sw_y": 30.0,
+        "ne_x": 20.0,
+        "ne_y": 40.0,
+        "sample_id_patterns": [
+          "B2_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "B3": {
+        "sw_x": 20.0,
+        "sw_y": 30.0,
+        "ne_x": 30.0,
+        "ne_y": 40.0,
+        "sample_id_patterns": [
+          "B3_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "C1": {
+        "sw_x": 0,
+        "sw_y": 20.0,
+        "ne_x": 10.0,
+        "ne_y": 30.0,
+        "sample_id_patterns": [
+          "C1_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "C2": {
+        "sw_x": 10.0,
+        "sw_y": 20.0,
+        "ne_x": 20.0,
+        "ne_y": 30.0,
+        "sample_id_patterns": [
+          "C2_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "C3": {
+        "sw_x": 20.0,
+        "sw_y": 20.0,
+        "ne_x": 30.0,
+        "ne_y": 30.0,
+        "sample_id_patterns": [
+          "C3_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "D1": {
+        "sw_x": 0,
+        "sw_y": 10.0,
+        "ne_x": 10.0,
+        "ne_y": 20.0,
+        "sample_id_patterns": [
+          "D1_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "D2": {
+        "sw_x": 10.0,
+        "sw_y": 10.0,
+        "ne_x": 20.0,
+        "ne_y": 20.0,
+        "sample_id_patterns": [
+          "D2_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "D3": {
+        "sw_x": 20.0,
+        "sw_y": 10.0,
+        "ne_x": 30.0,
+        "ne_y": 20.0,
+        "sample_id_patterns": [
+          "D3_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "E1": {
+        "sw_x": 0,
+        "sw_y": -0.0,
+        "ne_x": 10.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "E1_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "E2": {
+        "sw_x": 10.0,
+        "sw_y": -0.0,
+        "ne_x": 20.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "E2_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "E3": {
+        "sw_x": 20.0,
+        "sw_y": -0.0,
+        "ne_x": 30.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "E3_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      }
+    },
+    "point_samples": {}
+  },
+  {
+    "site_id": "2026-05-05",
+    "sampling_date": "2026-05-05",
+    "notes": "",
+    "anchor": {
+      "lat": 42.91985,
+      "lon": -78.82600833,
+      "description": "Fixed point at E1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft",
+      "marker_label": "Fixed Point (E1)"
+    },
+    "map_defaults": {
+      "zoom_start": 21,
+      "center_offset_north_ft": 0,
+      "center_offset_east_ft": 0
+    },
+    "rotation_deg": 0.0,
+    "grid_blocks": {
+      "A1": {
+        "sw_x": 0,
+        "sw_y": 40.0,
+        "ne_x": 10.0,
+        "ne_y": 50.0,
+        "sample_id_patterns": [
+          "A1_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "A2": {
+        "sw_x": 10.0,
+        "sw_y": 40.0,
+        "ne_x": 20.0,
+        "ne_y": 50.0,
+        "sample_id_patterns": [
+          "A2_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "A3": {
+        "sw_x": 20.0,
+        "sw_y": 40.0,
+        "ne_x": 30.0,
+        "ne_y": 50.0,
+        "sample_id_patterns": [
+          "A3_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "B1": {
+        "sw_x": 0,
+        "sw_y": 30.0,
+        "ne_x": 10.0,
+        "ne_y": 40.0,
+        "sample_id_patterns": [
+          "B1_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "B2": {
+        "sw_x": 10.0,
+        "sw_y": 30.0,
+        "ne_x": 20.0,
+        "ne_y": 40.0,
+        "sample_id_patterns": [
+          "B2_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "B3": {
+        "sw_x": 20.0,
+        "sw_y": 30.0,
+        "ne_x": 30.0,
+        "ne_y": 40.0,
+        "sample_id_patterns": [
+          "B3_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "C1": {
+        "sw_x": 0,
+        "sw_y": 20.0,
+        "ne_x": 10.0,
+        "ne_y": 30.0,
+        "sample_id_patterns": [
+          "C1_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "C2": {
+        "sw_x": 10.0,
+        "sw_y": 20.0,
+        "ne_x": 20.0,
+        "ne_y": 30.0,
+        "sample_id_patterns": [
+          "C2_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "C3": {
+        "sw_x": 20.0,
+        "sw_y": 20.0,
+        "ne_x": 30.0,
+        "ne_y": 30.0,
+        "sample_id_patterns": [
+          "C3_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "D1": {
+        "sw_x": 0,
+        "sw_y": 10.0,
+        "ne_x": 10.0,
+        "ne_y": 20.0,
+        "sample_id_patterns": [
+          "D1_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "D2": {
+        "sw_x": 10.0,
+        "sw_y": 10.0,
+        "ne_x": 20.0,
+        "ne_y": 20.0,
+        "sample_id_patterns": [
+          "D2_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "D3": {
+        "sw_x": 20.0,
+        "sw_y": 10.0,
+        "ne_x": 30.0,
+        "ne_y": 20.0,
+        "sample_id_patterns": [
+          "D3_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "E1": {
+        "sw_x": 0,
+        "sw_y": -0.0,
+        "ne_x": 10.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "E1_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "E2": {
+        "sw_x": 10.0,
+        "sw_y": -0.0,
+        "ne_x": 20.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "E2_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "E3": {
+        "sw_x": 20.0,
+        "sw_y": -0.0,
+        "ne_x": 30.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "E3_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      }
+    },
+    "point_samples": {}
+  },
+  {
+    "site_id": "2026-05-06",
+    "sampling_date": "2026-05-06",
+    "notes": "",
+    "anchor": {
+      "lat": 42.91985,
+      "lon": -78.82600833,
+      "description": "Fixed point at A1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft",
+      "marker_label": "Fixed Point (A1)"
+    },
+    "map_defaults": {
+      "zoom_start": 21,
+      "center_offset_north_ft": 0,
+      "center_offset_east_ft": 0
+    },
+    "rotation_deg": 0.0,
+    "grid_blocks": {
+      "A1": {
+        "sw_x": 0,
+        "sw_y": -0.0,
+        "ne_x": 10.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "A1_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "A2": {
+        "sw_x": 10.0,
+        "sw_y": -0.0,
+        "ne_x": 20.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "A2_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "A3": {
+        "sw_x": 20.0,
+        "sw_y": -0.0,
+        "ne_x": 30.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "A3_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "B1": {
+        "sw_x": 0,
+        "sw_y": -10.0,
+        "ne_x": 10.0,
+        "ne_y": -0.0,
+        "sample_id_patterns": [
+          "B1_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      },
+      "B2": {
+        "sw_x": 10.0,
+        "sw_y": -10.0,
+        "ne_x": 20.0,
+        "ne_y": -0.0,
+        "sample_id_patterns": [
+          "B2_"
+        ],
+        "zone": "yard",
+        "mock_ppm": 0
+      }
+    },
+    "point_samples": {}
+  },
+  {
+    "site_id": "2026-05-12",
+    "sampling_date": "2026-05-12",
+    "notes": "",
+    "anchor": {
+      "lat": 42.91985,
+      "lon": -78.82600833,
+      "description": "Front yard fixed point at A1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft",
+      "marker_label": "Front Fixed Point (A1)"
+    },
+    "rotation_deg": 0.0,
+    "map_defaults": {
+      "zoom_start": 21,
+      "center_offset_north_ft": 0,
+      "center_offset_east_ft": 0
+    },
+    "grid_blocks": {
+      "F_A1": {
+        "sw_x": 0,
+        "sw_y": -0.0,
+        "ne_x": 10.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "Front_A1_"
+        ],
+        "zone": "front_yard",
+        "cell_id": "A1",
+        "yard": "front",
+        "mock_ppm": 0
+      },
+      "F_A2": {
+        "sw_x": 10.0,
+        "sw_y": -0.0,
+        "ne_x": 20.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "Front_A2_"
+        ],
+        "zone": "front_yard",
+        "cell_id": "A2",
+        "yard": "front",
+        "mock_ppm": 0
+      },
+      "F_A3": {
+        "sw_x": 20.0,
+        "sw_y": -0.0,
+        "ne_x": 30.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "Front_A3_"
+        ],
+        "zone": "front_yard",
+        "cell_id": "A3",
+        "yard": "front",
+        "mock_ppm": 0
+      },
+      "B_A1": {
+        "sw_x": 0,
+        "sw_y": -0.0,
+        "ne_x": 10.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "Back_A1_"
+        ],
+        "zone": "backyard",
+        "cell_id": "A1",
+        "yard": "back",
+        "mock_ppm": 0
+      },
+      "B_A2": {
+        "sw_x": 10.0,
+        "sw_y": -0.0,
+        "ne_x": 20.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "Back_A2_"
+        ],
+        "zone": "backyard",
+        "cell_id": "A2",
+        "yard": "back",
+        "mock_ppm": 0
+      },
+      "B_A3": {
+        "sw_x": 20.0,
+        "sw_y": -0.0,
+        "ne_x": 30.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "Back_A3_"
+        ],
+        "zone": "backyard",
+        "cell_id": "A3",
+        "yard": "back",
+        "mock_ppm": 0
+      }
+    },
+    "point_samples": {},
+    "yards": {
+      "front": {
+        "anchor": {
+          "lat": 42.91985,
+          "lon": -78.82600833,
+          "description": "Front yard fixed point at A1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft",
+          "marker_label": "Front Fixed Point (A1)"
+        },
+        "rotation_deg": 0.0,
+        "grid_blocks": {
+          "F_A1": {
+            "sw_x": 0,
+            "sw_y": -0.0,
+            "ne_x": 10.0,
+            "ne_y": 10.0,
+            "sample_id_patterns": [
+              "Front_A1_"
+            ],
+            "zone": "front_yard",
+            "cell_id": "A1",
+            "yard": "front",
+            "mock_ppm": 0
+          },
+          "F_A2": {
+            "sw_x": 10.0,
+            "sw_y": -0.0,
+            "ne_x": 20.0,
+            "ne_y": 10.0,
+            "sample_id_patterns": [
+              "Front_A2_"
+            ],
+            "zone": "front_yard",
+            "cell_id": "A2",
+            "yard": "front",
+            "mock_ppm": 0
+          },
+          "F_A3": {
+            "sw_x": 20.0,
+            "sw_y": -0.0,
+            "ne_x": 30.0,
+            "ne_y": 10.0,
+            "sample_id_patterns": [
+              "Front_A3_"
+            ],
+            "zone": "front_yard",
+            "cell_id": "A3",
+            "yard": "front",
+            "mock_ppm": 0
+          }
+        },
+        "point_samples": {}
+      },
+      "back": {
+        "anchor": {
+          "lat": 42.91985,
+          "lon": -78.82600833,
+          "description": "Back yard fixed point at A1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft",
+          "marker_label": "Back Fixed Point (A1)"
+        },
+        "rotation_deg": 0.0,
+        "grid_blocks": {
+          "B_A1": {
+            "sw_x": 0,
+            "sw_y": -0.0,
+            "ne_x": 10.0,
+            "ne_y": 10.0,
+            "sample_id_patterns": [
+              "Back_A1_"
+            ],
+            "zone": "backyard",
+            "cell_id": "A1",
+            "yard": "back",
+            "mock_ppm": 0
+          },
+          "B_A2": {
+            "sw_x": 10.0,
+            "sw_y": -0.0,
+            "ne_x": 20.0,
+            "ne_y": 10.0,
+            "sample_id_patterns": [
+              "Back_A2_"
+            ],
+            "zone": "backyard",
+            "cell_id": "A2",
+            "yard": "back",
+            "mock_ppm": 0
+          },
+          "B_A3": {
+            "sw_x": 20.0,
+            "sw_y": -0.0,
+            "ne_x": 30.0,
+            "ne_y": 10.0,
+            "sample_id_patterns": [
+              "Back_A3_"
+            ],
+            "zone": "backyard",
+            "cell_id": "A3",
+            "yard": "back",
+            "mock_ppm": 0
+          }
+        },
+        "point_samples": {}
+      }
+    }
+  },
+  {
+    "site_id": "2026-05-13-test",
+    "sampling_date": "2026-05-13",
+    "notes": "",
+    "anchor": {
+      "lat": 42.9198721,
+      "lon": -78.82601839,
+      "description": "Front yard fixed point at A2 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged -1.08 E / +5.20 N ft \u00b7 visually nudged -1.61 E / +2.87 N ft",
+      "marker_label": "Front Fixed Point (A2)"
+    },
+    "rotation_deg": 0.0,
+    "map_defaults": {
+      "zoom_start": 21,
+      "center_offset_north_ft": 0,
+      "center_offset_east_ft": 0
+    },
+    "grid_blocks": {
+      "F_A1": {
+        "sw_x": -10.0,
+        "sw_y": -0.0,
+        "ne_x": 0.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "Front_A1_"
+        ],
+        "zone": "front_yard",
+        "cell_id": "A1",
+        "yard": "front",
+        "mock_ppm": 0
+      },
+      "F_A2": {
+        "sw_x": 0.0,
+        "sw_y": -0.0,
+        "ne_x": 10.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "Front_A2_"
+        ],
+        "zone": "front_yard",
+        "cell_id": "A2",
+        "yard": "front",
+        "mock_ppm": 0
+      },
+      "F_A3": {
+        "sw_x": 10.0,
+        "sw_y": -0.0,
+        "ne_x": 20.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "Front_A3_"
+        ],
+        "zone": "front_yard",
+        "cell_id": "A3",
+        "yard": "front",
+        "mock_ppm": 0
+      },
+      "B_A1": {
+        "sw_x": -10.0,
+        "sw_y": -0.0,
+        "ne_x": 0.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "Back_A1_"
+        ],
+        "zone": "backyard",
+        "cell_id": "A1",
+        "yard": "back",
+        "mock_ppm": 0
+      },
+      "B_A2": {
+        "sw_x": 0.0,
+        "sw_y": -0.0,
+        "ne_x": 10.0,
+        "ne_y": 10.0,
+        "sample_id_patterns": [
+          "Back_A2_"
+        ],
+        "zone": "backyard",
+        "cell_id": "A2",
+        "yard": "back",
+        "mock_ppm": 0
+      }
+    },
+    "point_samples": {},
+    "yards": {
+      "front": {
+        "anchor": {
+          "lat": 42.9198721,
+          "lon": -78.82601839,
+          "description": "Front yard fixed point at A2 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged -1.08 E / +5.20 N ft \u00b7 visually nudged -1.61 E / +2.87 N ft",
+          "marker_label": "Front Fixed Point (A2)"
+        },
+        "rotation_deg": 0.0,
+        "grid_blocks": {
+          "F_A1": {
+            "sw_x": -10.0,
+            "sw_y": -0.0,
+            "ne_x": 0.0,
+            "ne_y": 10.0,
+            "sample_id_patterns": [
+              "Front_A1_"
+            ],
+            "zone": "front_yard",
+            "cell_id": "A1",
+            "yard": "front",
+            "mock_ppm": 0
+          },
+          "F_A2": {
+            "sw_x": 0.0,
+            "sw_y": -0.0,
+            "ne_x": 10.0,
+            "ne_y": 10.0,
+            "sample_id_patterns": [
+              "Front_A2_"
+            ],
+            "zone": "front_yard",
+            "cell_id": "A2",
+            "yard": "front",
+            "mock_ppm": 0
+          },
+          "F_A3": {
+            "sw_x": 10.0,
+            "sw_y": -0.0,
+            "ne_x": 20.0,
+            "ne_y": 10.0,
+            "sample_id_patterns": [
+              "Front_A3_"
+            ],
+            "zone": "front_yard",
+            "cell_id": "A3",
+            "yard": "front",
+            "mock_ppm": 0
+          }
+        },
+        "point_samples": {}
+      },
+      "back": {
+        "anchor": {
+          "lat": 42.91985,
+          "lon": -78.82600833,
+          "description": "Back yard fixed point at A2 (Top-Left) \u2014 field-measured GPS",
+          "marker_label": "Back Fixed Point (A2)"
+        },
+        "rotation_deg": 0.0,
+        "grid_blocks": {
+          "B_A1": {
+            "sw_x": -10.0,
+            "sw_y": -0.0,
+            "ne_x": 0.0,
+            "ne_y": 10.0,
+            "sample_id_patterns": [
+              "Back_A1_"
+            ],
+            "zone": "backyard",
+            "cell_id": "A1",
+            "yard": "back",
+            "mock_ppm": 0
+          },
+          "B_A2": {
+            "sw_x": 0.0,
+            "sw_y": -0.0,
+            "ne_x": 10.0,
+            "ne_y": 10.0,
+            "sample_id_patterns": [
+              "Back_A2_"
+            ],
+            "zone": "backyard",
+            "cell_id": "A2",
+            "yard": "back",
+            "mock_ppm": 0
+          }
+        },
+        "point_samples": {}
+      }
+    }
+  }
+]
