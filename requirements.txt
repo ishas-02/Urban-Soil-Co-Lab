@@ -2,3 +2,4 @@ pandas
 streamlit
 plotly
 streamlit-js-eval
+requests
