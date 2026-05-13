@@ -1,5 +1,6 @@
-pandas
 streamlit
+pandas
 plotly
-streamlit-js-eval
 requests
+streamlit-js-eval
+matplotlib
