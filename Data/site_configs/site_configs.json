@@ -6,7 +6,7 @@
     "anchor": {
       "lat": 42.91130497,
       "lon": -78.85637257,
-      "description": "Corner of porch \u2014 intersection of blocks 3D, 3C, and 2C \u00b7 visually nudged +2.87 E / -74.26 N ft",
+      "description": "Corner of porch — intersection of blocks 3D, 3C, and 2C · visually nudged +2.87 E / -74.26 N ft",
       "marker_label": "Porch Corner (Anchor)"
     },
     "map_defaults": {
@@ -243,7 +243,7 @@
         "anchor": {
           "lat": 42.91149847,
           "lon": -78.85637661,
-          "description": "Corner of porch \u2014 intersection of blocks 3D, 3C, and 2C \u00b7 visually nudged +1.79 E / -3.59 N ft",
+          "description": "Corner of porch — intersection of blocks 3D, 3C, and 2C · visually nudged +1.79 E / -3.59 N ft",
           "marker_label": "Porch Corner (Anchor)"
         },
         "rotation_deg": 0.0,
@@ -394,7 +394,7 @@
         "anchor": {
           "lat": 42.91130497,
           "lon": -78.85637257,
-          "description": "Corner of porch \u2014 intersection of blocks 3D, 3C, and 2C \u00b7 visually nudged +2.87 E / -74.26 N ft",
+          "description": "Corner of porch — intersection of blocks 3D, 3C, and 2C · visually nudged +2.87 E / -74.26 N ft",
           "marker_label": "Porch Corner (Anchor)"
         },
         "rotation_deg": 0.0,
@@ -494,7 +494,7 @@
     "anchor": {
       "lat": 42.917925,
       "lon": -78.8754556,
-      "description": "Fixed point at E1/F1/E2 corner \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft",
+      "description": "Fixed point at E1/F1/E2 corner — field-measured GPS · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft",
       "marker_label": "Fixed Point (E1/F1/E2 corner)"
     },
     "map_defaults": {
@@ -738,7 +738,7 @@
     "anchor": {
       "lat": 42.91985,
       "lon": -78.8260083,
-      "description": "Fixed point at E2 corner \u2014 field-measured GPS",
+      "description": "Fixed point at E2 corner — field-measured GPS",
       "marker_label": "Fixed Point (E2 corner)"
     },
     "map_defaults": {
@@ -934,7 +934,7 @@
     "anchor": {
       "lat": 42.91967106,
       "lon": -78.88491959,
-      "description": "Google Places coordinate (no field GPS yet) \u00b7 visually nudged -74.07 E / -19.37 N ft \u00b7 visually nudged +1.43 E / -1.79 N ft",
+      "description": "Google Places coordinate (no field GPS yet) · visually nudged -74.07 E / -19.37 N ft · visually nudged +1.43 E / -1.79 N ft",
       "marker_label": "102 Putnam St"
     },
     "map_defaults": {
@@ -1089,7 +1089,7 @@
     "anchor": {
       "lat": 42.91985,
       "lon": -78.82600833,
-      "description": "Fixed point at E1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft",
+      "description": "Fixed point at E1 (Top-Left) — field-measured GPS · visually nudged +0.00 E / +0.00 N ft",
       "marker_label": "Fixed Point (E1)"
     },
     "map_defaults": {
@@ -1274,7 +1274,7 @@
     "anchor": {
       "lat": 42.91985,
       "lon": -78.82600833,
-      "description": "Fixed point at E1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft",
+      "description": "Fixed point at E1 (Top-Left) — field-measured GPS · visually nudged +0.00 E / +0.00 N ft",
       "marker_label": "Fixed Point (E1)"
     },
     "map_defaults": {
@@ -1459,7 +1459,7 @@
     "anchor": {
       "lat": 42.91985,
       "lon": -78.82600833,
-      "description": "Fixed point at A1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft",
+      "description": "Fixed point at A1 (Top-Left) — field-measured GPS · visually nudged +0.00 E / +0.00 N ft",
       "marker_label": "Fixed Point (A1)"
     },
     "map_defaults": {
@@ -1534,7 +1534,7 @@
     "anchor": {
       "lat": 42.91985,
       "lon": -78.82600833,
-      "description": "Front yard fixed point at A1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft",
+      "description": "Front yard fixed point at A1 (Top-Left) — field-measured GPS · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft",
       "marker_label": "Front Fixed Point (A1)"
     },
     "rotation_deg": 0.0,
@@ -1629,7 +1629,7 @@
         "anchor": {
           "lat": 42.91985,
           "lon": -78.82600833,
-          "description": "Front yard fixed point at A1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft",
+          "description": "Front yard fixed point at A1 (Top-Left) — field-measured GPS · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft",
           "marker_label": "Front Fixed Point (A1)"
         },
         "rotation_deg": 0.0,
@@ -1680,7 +1680,7 @@
         "anchor": {
           "lat": 42.91985,
           "lon": -78.82600833,
-          "description": "Back yard fixed point at A1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft",
+          "description": "Back yard fixed point at A1 (Top-Left) — field-measured GPS · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft",
           "marker_label": "Back Fixed Point (A1)"
         },
         "rotation_deg": 0.0,
@@ -1736,10 +1736,10 @@
     "anchor": {
       "lat": 42.9198721,
       "lon": -78.82601839,
-      "description": "Front yard fixed point at A2 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged -1.08 E / +5.20 N ft \u00b7 visually nudged -1.61 E / +2.87 N ft",
+      "description": "Front yard fixed point at A2 (Top-Left) — field-measured GPS · visually nudged -1.08 E / +5.20 N ft · visually nudged -1.61 E / +2.87 N ft",
       "marker_label": "Front Fixed Point (A2)"
     },
-    "rotation_deg": 0.0,
+    "rotation_deg": 3.0,
     "map_defaults": {
       "zoom_start": 21,
       "center_offset_north_ft": 0,
@@ -1818,10 +1818,10 @@
         "anchor": {
           "lat": 42.9198721,
           "lon": -78.82601839,
-          "description": "Front yard fixed point at A2 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged -1.08 E / +5.20 N ft \u00b7 visually nudged -1.61 E / +2.87 N ft",
+          "description": "Front yard fixed point at A2 (Top-Left) — field-measured GPS · visually nudged -1.08 E / +5.20 N ft · visually nudged -1.61 E / +2.87 N ft",
           "marker_label": "Front Fixed Point (A2)"
         },
-        "rotation_deg": 0.0,
+        "rotation_deg": 3.0,
         "grid_blocks": {
           "F_A1": {
             "sw_x": -10.0,
@@ -1869,10 +1869,10 @@
         "anchor": {
           "lat": 42.91985,
           "lon": -78.82600833,
-          "description": "Back yard fixed point at A2 (Top-Left) \u2014 field-measured GPS",
+          "description": "Back yard fixed point at A2 (Top-Left) — field-measured GPS",
           "marker_label": "Back Fixed Point (A2)"
         },
-        "rotation_deg": 0.0,
+        "rotation_deg": 3.0,
         "grid_blocks": {
           "B_A1": {
             "sw_x": -10.0,
