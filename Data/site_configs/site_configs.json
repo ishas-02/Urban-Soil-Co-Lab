@@ -241,9 +241,9 @@
     "yards": {
       "back": {
         "anchor": {
-          "lat": 42.91149847,
-          "lon": -78.85637661,
-          "description": "Corner of porch — intersection of blocks 3D, 3C, and 2C · visually nudged +1.79 E / -3.59 N ft",
+          "lat": 42.91151222,
+          "lon": -78.85638734,
+          "description": "Corner of porch — intersection of blocks 3D, 3C, and 2C · visually nudged +1.79 E / -3.59 N ft · visually nudged -2.87 E / +5.02 N ft",
           "marker_label": "Porch Corner (Anchor)"
         },
         "rotation_deg": 0.0,
