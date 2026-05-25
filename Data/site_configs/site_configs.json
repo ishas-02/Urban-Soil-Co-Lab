@@ -736,9 +736,9 @@
     "sampling_date": "2025-10-04",
     "notes": "Horizontal grid. I1 near house (west), A1 far end (east). Fixed point at E2 corner. E2 has triangle cutout meeting D2 corner. I2 is half width of I1, same height as H2.",
     "anchor": {
-      "lat": 42.91985,
-      "lon": -78.8260083,
-      "description": "Fixed point at E2 corner — field-measured GPS",
+      "lat": 42.91983086,
+      "lon": -78.8260197,
+      "description": "Fixed point at E2 corner — field-measured GPS · visually nudged -3.05 E / -6.99 N ft",
       "marker_label": "Fixed Point (E2 corner)"
     },
     "map_defaults": {
