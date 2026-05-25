@@ -5,3 +5,6 @@ requests
 streamlit-js-eval
 matplotlib
 python-dotenv
+python-pptx
+Pillow
+playwright
