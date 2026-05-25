@@ -1270,10 +1270,49 @@ if compute:
     # this cell's left edge, including widths AND gaps to the right of each
     # earlier column. Defined as a closure so both fp_perp and the per-cell
     # loop below use the exact same math.
+    # perp_start_for(row, col): cumulative offset from cell-1's left edge to
+    # this cell's left edge, including widths AND gaps to the right of each
+    # earlier column. Defined as a closure so both fp_perp and the per-cell
+    # loop below use the exact same math.
+    #
+    # For SPARSE extension rows (rows missing leftward columns — e.g. row F
+    # has only F3 and F4, no F1/F2), the cell is positioned so its RIGHT
+    # edge aligns with the main grid's column-`col` right edge. The cell
+    # is thus "hung" under the main-grid column of the same number, with
+    # any narrower-than-main-grid width producing a walkway on its left.
+    def _main_grid_col_right_edge(col):
+        """Cumulative offset from strip-left to the RIGHT edge of main-grid
+        column `col`. Uses the first row in `rows` that has all columns
+        1..col present — typically row A or B (the main grid)."""
+        for r in rows:
+            widths = col_widths_per_row.get(r, {})
+            if all(c in widths for c in range(1, col + 1)):
+                total = 0.0
+                for c in range(1, col + 1):
+                    total += widths[c]
+                    if c < col:
+                        total += col_gap_right_per_row[r].get(c, 0.0)
+                return total
+        return None
+
     def perp_start_for(row, col):
+        widths = col_widths_per_row.get(row, {})
+        # Dense case: all columns 1..col-1 are present in this row.
+        if all(c in widths for c in range(1, col)):
+            s = 0.0
+            for c in range(1, col):
+                s += widths[c]
+                s += col_gap_right_per_row[row].get(c, 0)
+            return s
+        # Sparse case (extension row): right-align under main-grid col.
+        main_right_edge = _main_grid_col_right_edge(col)
+        my_width = widths.get(col, 0.0)
+        if main_right_edge is not None:
+            return main_right_edge - my_width
+        # Last-resort fallback: old behaviour with 0 for missing cols.
         s = 0.0
         for c in range(1, col):
-            s += col_widths_per_row[row].get(c, 0)
+            s += widths.get(c, 0)
             s += col_gap_right_per_row[row].get(c, 0)
         return s
 
