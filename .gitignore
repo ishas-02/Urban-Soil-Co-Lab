@@ -77,3 +77,7 @@ secrets/
 *.pem
 credentials.json
 .streamlit
+
+# Streamlit secrets (subdirectory variant)
+src/.streamlit/
+**/.streamlit/secrets.toml
