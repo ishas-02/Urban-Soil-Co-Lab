@@ -1,20 +1,78 @@
-#Data files
-*.csv
-*.xlsx
-data/
-
-#Mac system files
-.DS_Store
-
-#Python environment
+# ============================================================
+# Python
+# ============================================================
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ============================================================
+# Virtual environments
+# ============================================================
 venv/
 env/
+ENV/
+.venv/
+.env
 
-#Streamlit
-.streamlit/
+# ============================================================
+# Editors & OS junk
+# ============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+__MACOSX/
+._*
 
-#Pass
-.streamlit/
+# ============================================================
+# Data files — never commit raw data to Git.
+# Data lives in SharePoint + the OpenShift PersistentVolume.
+# ============================================================
+data/
+Data/
+*.csv
+*.xlsx
+*.pdf
+!requirements.txt
+
+# Keep folder structure markers
+!data/.gitkeep
+!data/**/.gitkeep
+
+# ============================================================
+# Generated outputs
+# ============================================================
+*.pptx
+!src/Resident_Report_Template.pptx
+generated_reports/
+*.log
+
+# ============================================================
+# Secrets — NEVER commit these
+# ============================================================
+.env
+.env.*
+secrets/
+*.key
+*.pem
+credentials.json

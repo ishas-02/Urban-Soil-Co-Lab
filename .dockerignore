@@ -1,0 +1,32 @@
+# Don't ship Git history or CI configs in the image
+.git/
+.github/
+.gitignore
+
+# Don't ship dev artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Don't ship docs / README in the runtime image
+*.md
+docs/
+
+# Don't ship data — it comes from the PersistentVolume mount
+data/
+Data/
+
+# Don't ship Mac / Windows junk
+.DS_Store
+__MACOSX/
+Thumbs.db
+
+# Don't ship local env files
+.env
+.env.*
+
+# Don't ship the Dockerfile itself
+Dockerfile
+.dockerignore

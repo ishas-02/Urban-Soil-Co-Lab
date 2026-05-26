@@ -1,10 +1,31 @@
-streamlit
-pandas
-plotly
-requests
-streamlit-js-eval
-matplotlib
-python-dotenv
-python-pptx
-Pillow
-playwright
+# ============================================================
+# Soil Co-Lab — Python dependencies
+# Pinned versions for reproducible OpenShift builds.
+# Bump deliberately, not by accident.
+# ============================================================
+
+# --- Core web app framework ---
+streamlit==1.39.0
+streamlit-js-eval==0.1.7
+streamlit-folium==0.23.2
+
+# --- Data handling ---
+pandas==2.2.3
+numpy==1.26.4
+
+# --- Visualization ---
+plotly==5.24.1
+matplotlib==3.9.2
+folium==0.18.0
+
+# --- Networking ---
+requests==2.32.3
+
+# --- Files & utilities ---
+python-dotenv==1.0.1
+python-pptx==1.0.2
+Pillow==10.4.0
+
+# --- Browser automation (kept for parity; pulls big deps) ---
+# If you don't need it on the server, remove this line to shrink the image ~150MB.
+playwright==1.48.0
