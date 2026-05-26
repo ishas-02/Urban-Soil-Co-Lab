@@ -151,7 +151,7 @@ def get_site_configs_path():
     Data/site_configs/site_configs.json
     """
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_dir, "..", "Data", "site_configs", "site_configs.json")
+    return os.path.join(base_dir, "..", "data", "site_configs", "site_configs.json")
  
  
 def load_existing_config_for_site_id(site_id, config_path):
@@ -2433,7 +2433,7 @@ if "generated_config" in st.session_state:
                 )
                 st.session_state["github_commit_status"] = {
                     "ok": True,
-                    "message": "✅ Updated Data/site_configs/site_configs.json was committed to GitHub.",
+                    "message": "✅ Updated data/site_configs/site_configs.json was committed to GitHub.",
                 }
             except Exception as e:
                 st.session_state["github_commit_status"] = {
