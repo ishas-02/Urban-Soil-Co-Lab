@@ -145,10 +145,10 @@ def get_site_configs_path():
     """Return the repo-local site_configs.json path used by the builder.
  
     Local absolute path example:
-    /Users/ishashetye/Documents/Soil Co-Lab/Data/site_configs/site_configs.json
+    /Users/ishashetye/Documents/Soil Co-Lab/data/site_configs/site_configs.json
  
     GitHub repo-relative path for sync:
-    Data/site_configs/site_configs.json
+    data/site_configs/site_configs.json
     """
     base_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_dir, "..", "data", "site_configs", "site_configs.json")
@@ -533,7 +533,7 @@ with ec1:
         options=["— select to load —"] + _existing_site_ids,
         index=0,
         key="existing_site_selector",
-        help="Sites are pulled from Data/site_configs/site_configs.json.",
+        help="Sites are pulled from data/site_configs/site_configs.json.",
     )
 with ec2:
     load_clicked = st.button(
