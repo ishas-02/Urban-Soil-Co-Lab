@@ -76,3 +76,4 @@ secrets/
 *.key
 *.pem
 credentials.json
+.streamlit
