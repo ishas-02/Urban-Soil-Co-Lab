@@ -8,6 +8,10 @@ import glob
 import re
 import io
 import tempfile
+
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from paths import SITE_CONFIGS_DIR
  
 from github_sync import commit_json_to_github, github_sync_enabled
  
@@ -142,17 +146,8 @@ def dms_to_decimal(degrees, minutes, seconds, direction):
  
  
 def get_site_configs_path():
-    """Return the repo-local site_configs.json path used by the builder.
- 
-    Local absolute path example:
-    /Users/ishashetye/Documents/Soil Co-Lab/data/site_configs/site_configs.json
- 
-    GitHub repo-relative path for sync:
-    data/site_configs/site_configs.json
-    """
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_dir, "..", "data", "site_configs", "site_configs.json")
- 
+    """Return the site_configs.json path, honoring SOIL_DATA_DIR (the mounted volume)."""
+    return str(SITE_CONFIGS_DIR / "site_configs.json")
  
 def load_existing_config_for_site_id(site_id, config_path):
     """If this site_id already has a saved config, return its current offset/rotation."""
