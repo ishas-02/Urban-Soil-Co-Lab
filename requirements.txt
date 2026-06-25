@@ -28,4 +28,4 @@ Pillow==10.4.0
 
 # --- Browser automation (kept for parity; pulls big deps) ---
 # If you don't need it on the server, remove this line to shrink the image ~150MB.
-playwright==1.48.0
+playwright==1.48.0msal==1.31.1
