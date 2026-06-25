@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sharepoint-sync
+  namespace: urban-soil-co-lab
+spec:
+  schedule: "0 * * * *"            # top of every hour (UTC)
+  concurrencyPolicy: Forbid        # never run two syncs at once
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600    # Job-level deadline
+      backoffLimit: 1
+      template:
+        spec:
+          activeDeadlineSeconds: 600   # POD-level deadline -> makes pod "terminating" so it passes the NotTerminating CPU quota
+          restartPolicy: Never
+          containers:
+            - name: sync
+              image: image-registry.openshift-image-registry.svc:5000/urban-soil-co-lab/xrf-tech:latest
+              imagePullPolicy: Always
+              command: ["python", "sync_sharepoint.py"]
+              workingDir: /opt/app-root/src
+              env:
+                - name: SOIL_DATA_DIR
+                  value: /opt/app-root/src/data
+                - name: SP_TENANT_ID
+                  valueFrom:
+                    secretKeyRef: { name: sharepoint-sync, key: SP_TENANT_ID }
+                - name: SP_CLIENT_ID
+                  valueFrom:
+                    secretKeyRef: { name: sharepoint-sync, key: SP_CLIENT_ID }
+                - name: SP_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef: { name: sharepoint-sync, key: SP_CLIENT_SECRET }
+              resources:
+                requests: { memory: "128Mi", cpu: "100m" }
+                limits:   { memory: "256Mi", cpu: "200m" }
+              volumeMounts:
+                - name: soil-data
+                  mountPath: /opt/app-root/src/data
+          volumes:
+            - name: soil-data
+              persistentVolumeClaim:
+                claimName: soil-data
