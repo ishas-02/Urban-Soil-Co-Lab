@@ -934,33 +934,29 @@ for row in rows:
                     )
 
                     if shape_kind == "notch":
-                        nc1, nc2, nc3 = st.columns([1, 1, 1])
-                        with nc1:
-                            corner = st.selectbox(
-                                "Notch corner",
-                                options=["TL", "TR", "BL", "BR"],
-                                format_func=lambda k: {
-                                    "TL": "Top-Left (sketch)",
-                                    "TR": "Top-Right (sketch)",
-                                    "BL": "Bottom-Left (sketch)",
-                                    "BR": "Bottom-Right (sketch)",
-                                }[k],
-                                key=f"notch_corner_{cell_id}_{yard_key}",
-                                help="Which corner of the cell (as drawn on "
-                                     "your sketch) has the bite taken out.",
-                            )
-                        with nc2:
-                            notch_w = feet_inches_input(
-                                "Notch width",
-                                key=f"notch_w_{cell_id}_{yard_key}",
-                                default_ft=2, default_in=0,
-                            )
-                        with nc3:
-                            notch_h = feet_inches_input(
-                                "Notch height",
-                                key=f"notch_h_{cell_id}_{yard_key}",
-                                default_ft=2, default_in=0,
-                            )
+                        corner = st.selectbox(
+                            "Notch corner",
+                            options=["TL", "TR", "BL", "BR"],
+                            format_func=lambda k: {
+                                "TL": "Top-Left (sketch)",
+                                "TR": "Top-Right (sketch)",
+                                "BL": "Bottom-Left (sketch)",
+                                "BR": "Bottom-Right (sketch)",
+                            }[k],
+                            key=f"notch_corner_{cell_id}_{yard_key}",
+                            help="Which corner of the cell (as drawn on "
+                                 "your sketch) has the bite taken out.",
+                        )
+                        notch_w = feet_inches_input(
+                            "Notch width",
+                            key=f"notch_w_{cell_id}_{yard_key}",
+                            default_ft=2, default_in=0,
+                        )
+                        notch_h = feet_inches_input(
+                            "Notch height",
+                            key=f"notch_h_{cell_id}_{yard_key}",
+                            default_ft=2, default_in=0,
+                        )
                         shape_params = {
                             "corner":  corner,
                             "notch_w": notch_w,
@@ -968,31 +964,27 @@ for row in rows:
                         }
 
                     elif shape_kind == "angle":
-                        ac1, ac2, ac3 = st.columns([1, 1, 1])
-                        with ac1:
-                            side = st.selectbox(
-                                "Slanted edge",
-                                options=["L", "R", "T", "B"],
-                                format_func=lambda k: {
-                                    "L": "Left (sketch)",
-                                    "R": "Right (sketch)",
-                                    "T": "Top (far from house)",
-                                    "B": "Bottom (near house)",
-                                }[k],
-                                key=f"angle_side_{cell_id}_{yard_key}",
-                            )
-                        with ac2:
-                            inset_near = feet_inches_input(
-                                "Inset @ first end",
-                                key=f"angle_near_{cell_id}_{yard_key}",
-                                default_ft=0, default_in=0,
-                            )
-                        with ac3:
-                            inset_far = feet_inches_input(
-                                "Inset @ second end",
-                                key=f"angle_far_{cell_id}_{yard_key}",
-                                default_ft=0, default_in=0,
-                            )
+                        side = st.selectbox(
+                            "Slanted edge",
+                            options=["L", "R", "T", "B"],
+                            format_func=lambda k: {
+                                "L": "Left (sketch)",
+                                "R": "Right (sketch)",
+                                "T": "Top (far from house)",
+                                "B": "Bottom (near house)",
+                            }[k],
+                            key=f"angle_side_{cell_id}_{yard_key}",
+                        )
+                        inset_near = feet_inches_input(
+                            "Inset @ first end",
+                            key=f"angle_near_{cell_id}_{yard_key}",
+                            default_ft=0, default_in=0,
+                        )
+                        inset_far = feet_inches_input(
+                            "Inset @ second end",
+                            key=f"angle_far_{cell_id}_{yard_key}",
+                            default_ft=0, default_in=0,
+                        )
                         st.caption(
                             "L/R: first end = bottom of edge, second = top. "
                             "T/B: first end = left of edge, second = right. "

@@ -400,7 +400,7 @@ def _call_gemini(
     api_key: str,
     model: str = "gemini-2.5-flash",
     extra_hints: Optional[str] = None,
-    timeout: int = 60,
+    timeout: int = 120,
 ) -> tuple[dict[str, Any], str, dict[str, Any]]:
     """Call Gemini's generateContent endpoint with the sketch.
 
@@ -500,7 +500,7 @@ def _call_claude(
     api_key: str,
     model: str = "claude-sonnet-4-6",
     extra_hints: Optional[str] = None,
-    timeout: int = 60,
+    timeout: int = 120,
 ) -> tuple[dict[str, Any], str, dict[str, Any]]:
     """Call Claude's /v1/messages endpoint with the sketch.
 
@@ -578,13 +578,34 @@ def _is_rate_limit_error(exc: BaseException) -> bool:
     return "429" in msg or "rate limit" in msg or "quota" in msg
 
 
-def _call_with_retry(call_fn, *args, max_retries: int = 3, **kwargs):
-    """Call a provider function, retrying transient 429 errors.
+def _is_transient_error(exc: BaseException) -> bool:
+    """True iff the exception is a transient network error worth retrying.
 
-    Uses exponential backoff: 5s, 15s, 45s. Re-raises non-429 errors
-    immediately and re-raises the final 429 once retries are exhausted
-    (so the UI still sees a clean failure if the quota is actually
-    exhausted, rather than silently hanging).
+    Covers rate limits (429) plus read/connect timeouts and connection
+    resets, which are common on large VLM image requests and usually
+    succeed on a retry.
+    """
+    if _is_rate_limit_error(exc):
+        return True
+    msg = str(exc).lower()
+    return (
+        "timed out" in msg
+        or "timeout" in msg
+        or "connection reset" in msg
+        or "connection aborted" in msg
+        or "temporarily unavailable" in msg
+    )
+
+
+def _call_with_retry(call_fn, *args, max_retries: int = 3, **kwargs):
+    """Call a provider function, retrying transient errors.
+
+    Retries rate limits (429) AND transient network errors such as read
+    timeouts and connection resets, which are common on large VLM image
+    requests. Uses exponential backoff: 5s, 15s, 45s. Re-raises
+    non-transient errors immediately and re-raises the final error once
+    retries are exhausted (so the UI still sees a clean failure rather
+    than silently hanging).
     """
     import time
     delays = [5, 15, 45]
@@ -593,7 +614,7 @@ def _call_with_retry(call_fn, *args, max_retries: int = 3, **kwargs):
         try:
             return call_fn(*args, **kwargs)
         except Exception as exc:
-            if not _is_rate_limit_error(exc) or attempt == max_retries - 1:
+            if not _is_transient_error(exc) or attempt == max_retries - 1:
                 raise
             last_exc = exc
             delay = delays[min(attempt, len(delays) - 1)]
@@ -611,7 +632,7 @@ def extract_from_image(
     api_key: Optional[str] = None,
     model: Optional[str] = None,
     extra_hints: Optional[str] = None,
-    timeout: int = 60,
+    timeout: int = 120,
     max_retries: int = 3,
 ) -> ExtractionResult:
     """Extract a site sketch using the chosen VLM backend.
