@@ -6,7 +6,7 @@
     "anchor": {
       "lat": 42.91130497,
       "lon": -78.85637257,
-      "description": "Corner of porch — intersection of blocks 3D, 3C, and 2C · visually nudged +2.87 E / -74.26 N ft",
+      "description": "Corner of porch \u2014 intersection of blocks 3D, 3C, and 2C \u00b7 visually nudged +2.87 E / -74.26 N ft",
       "marker_label": "Porch Corner (Anchor)"
     },
     "map_defaults": {
@@ -243,7 +243,7 @@
         "anchor": {
           "lat": 42.91151222,
           "lon": -78.85638734,
-          "description": "Corner of porch — intersection of blocks 3D, 3C, and 2C · visually nudged +1.79 E / -3.59 N ft · visually nudged -2.87 E / +5.02 N ft",
+          "description": "Corner of porch \u2014 intersection of blocks 3D, 3C, and 2C \u00b7 visually nudged +1.79 E / -3.59 N ft \u00b7 visually nudged -2.87 E / +5.02 N ft",
           "marker_label": "Porch Corner (Anchor)"
         },
         "rotation_deg": 0.0,
@@ -394,7 +394,7 @@
         "anchor": {
           "lat": 42.91130497,
           "lon": -78.85637257,
-          "description": "Corner of porch — intersection of blocks 3D, 3C, and 2C · visually nudged +2.87 E / -74.26 N ft",
+          "description": "Corner of porch \u2014 intersection of blocks 3D, 3C, and 2C \u00b7 visually nudged +2.87 E / -74.26 N ft",
           "marker_label": "Porch Corner (Anchor)"
         },
         "rotation_deg": 0.0,
@@ -494,7 +494,7 @@
     "anchor": {
       "lat": 42.917925,
       "lon": -78.8754556,
-      "description": "Fixed point at E1/F1/E2 corner — field-measured GPS · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft",
+      "description": "Fixed point at E1/F1/E2 corner \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft",
       "marker_label": "Fixed Point (E1/F1/E2 corner)"
     },
     "map_defaults": {
@@ -738,7 +738,7 @@
     "anchor": {
       "lat": 42.91983086,
       "lon": -78.8260197,
-      "description": "Fixed point at E2 corner — field-measured GPS · visually nudged -3.05 E / -6.99 N ft",
+      "description": "Fixed point at E2 corner \u2014 field-measured GPS \u00b7 visually nudged -3.05 E / -6.99 N ft",
       "marker_label": "Fixed Point (E2 corner)"
     },
     "map_defaults": {
@@ -935,7 +935,7 @@
     "anchor": {
       "lat": 42.91967106,
       "lon": -78.88491959,
-      "description": "Google Places coordinate (no field GPS yet) · visually nudged -74.07 E / -19.37 N ft · visually nudged +1.43 E / -1.79 N ft",
+      "description": "Google Places coordinate (no field GPS yet) \u00b7 visually nudged -74.07 E / -19.37 N ft \u00b7 visually nudged +1.43 E / -1.79 N ft",
       "marker_label": "102 Putnam St"
     },
     "map_defaults": {
@@ -949,7 +949,9 @@
         "sw_y": 0.0,
         "ne_x": 10.0,
         "ne_y": 10.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_A1"
+        ],
         "zone": "yard",
         "mock_ppm": 597
       },
@@ -958,7 +960,9 @@
         "sw_y": 10.0,
         "ne_x": 10.0,
         "ne_y": 20.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_A2"
+        ],
         "zone": "yard",
         "mock_ppm": 570.3
       },
@@ -967,7 +971,9 @@
         "sw_y": 20.0,
         "ne_x": 10.0,
         "ne_y": 30.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_A3"
+        ],
         "zone": "yard",
         "mock_ppm": 704
       },
@@ -976,7 +982,9 @@
         "sw_y": 0.0,
         "ne_x": 20.0,
         "ne_y": 10.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_B1"
+        ],
         "zone": "yard",
         "mock_ppm": 678
       },
@@ -985,7 +993,9 @@
         "sw_y": 10.0,
         "ne_x": 20.0,
         "ne_y": 20.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_B2"
+        ],
         "zone": "yard",
         "mock_ppm": 282
       },
@@ -994,7 +1004,9 @@
         "sw_y": 20.0,
         "ne_x": 20.0,
         "ne_y": 30.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_B3"
+        ],
         "zone": "yard",
         "mock_ppm": 432.3
       },
@@ -1003,7 +1015,9 @@
         "sw_y": 0.0,
         "ne_x": 30.0,
         "ne_y": 10.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_C1"
+        ],
         "zone": "yard",
         "mock_ppm": 561.3
       },
@@ -1012,7 +1026,9 @@
         "sw_y": 10.0,
         "ne_x": 30.0,
         "ne_y": 20.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_C2"
+        ],
         "zone": "yard",
         "mock_ppm": 314.3
       },
@@ -1021,7 +1037,9 @@
         "sw_y": 20.0,
         "ne_x": 30.0,
         "ne_y": 30.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_C3"
+        ],
         "zone": "yard",
         "mock_ppm": 506
       },
@@ -1030,7 +1048,9 @@
         "sw_y": 0.0,
         "ne_x": 40.0,
         "ne_y": 10.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_D1"
+        ],
         "zone": "yard",
         "mock_ppm": 674.7
       },
@@ -1040,8 +1060,7 @@
         "ne_x": 40.0,
         "ne_y": 20.0,
         "sample_id_patterns": [],
-        "zone": "yard",
-        "mock_ppm": 494.7
+        "zone": "yard"
       },
       "D3": {
         "sw_x": 30.0,
@@ -1049,15 +1068,16 @@
         "ne_x": 40.0,
         "ne_y": 30.0,
         "sample_id_patterns": [],
-        "zone": "yard",
-        "mock_ppm": 722
+        "zone": "yard"
       },
       "E1": {
         "sw_x": 40.0,
         "sw_y": 0.0,
         "ne_x": 50.0,
         "ne_y": 10.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_E1"
+        ],
         "zone": "yard",
         "mock_ppm": 443
       },
@@ -1066,7 +1086,9 @@
         "sw_y": 10.0,
         "ne_x": 50.0,
         "ne_y": 20.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_E2"
+        ],
         "zone": "yard",
         "mock_ppm": 581.3
       },
@@ -1075,9 +1097,11 @@
         "sw_y": 20.0,
         "ne_x": 50.0,
         "ne_y": 30.0,
-        "sample_id_patterns": [],
+        "sample_id_patterns": [
+          "08Jul2025_PITT_E3"
+        ],
         "zone": "yard",
-        "mock_ppm": 1017.2
+        "mock_ppm": 1321.0
       }
     },
     "point_samples": {},
@@ -1090,7 +1114,7 @@
     "anchor": {
       "lat": 42.91985,
       "lon": -78.82600833,
-      "description": "Fixed point at E1 (Top-Left) — field-measured GPS · visually nudged +0.00 E / +0.00 N ft",
+      "description": "Fixed point at E1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft",
       "marker_label": "Fixed Point (E1)"
     },
     "map_defaults": {
@@ -1275,7 +1299,7 @@
     "anchor": {
       "lat": 42.91985,
       "lon": -78.82600833,
-      "description": "Fixed point at E1 (Top-Left) — field-measured GPS · visually nudged +0.00 E / +0.00 N ft",
+      "description": "Fixed point at E1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft",
       "marker_label": "Fixed Point (E1)"
     },
     "map_defaults": {
@@ -1460,7 +1484,7 @@
     "anchor": {
       "lat": 42.91985,
       "lon": -78.82600833,
-      "description": "Fixed point at A1 (Top-Left) — field-measured GPS · visually nudged +0.00 E / +0.00 N ft",
+      "description": "Fixed point at A1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft",
       "marker_label": "Fixed Point (A1)"
     },
     "map_defaults": {
@@ -1535,7 +1559,7 @@
     "anchor": {
       "lat": 42.91985,
       "lon": -78.82600833,
-      "description": "Front yard fixed point at A1 (Top-Left) — field-measured GPS · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft",
+      "description": "Front yard fixed point at A1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft",
       "marker_label": "Front Fixed Point (A1)"
     },
     "rotation_deg": 0.0,
@@ -1630,7 +1654,7 @@
         "anchor": {
           "lat": 42.91985,
           "lon": -78.82600833,
-          "description": "Front yard fixed point at A1 (Top-Left) — field-measured GPS · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft",
+          "description": "Front yard fixed point at A1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft",
           "marker_label": "Front Fixed Point (A1)"
         },
         "rotation_deg": 0.0,
@@ -1681,7 +1705,7 @@
         "anchor": {
           "lat": 42.91985,
           "lon": -78.82600833,
-          "description": "Back yard fixed point at A1 (Top-Left) — field-measured GPS · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft · visually nudged +0.00 E / +0.00 N ft",
+          "description": "Back yard fixed point at A1 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft \u00b7 visually nudged +0.00 E / +0.00 N ft",
           "marker_label": "Back Fixed Point (A1)"
         },
         "rotation_deg": 0.0,
@@ -1737,7 +1761,7 @@
     "anchor": {
       "lat": 42.9198721,
       "lon": -78.82601839,
-      "description": "Front yard fixed point at A2 (Top-Left) — field-measured GPS · visually nudged -1.08 E / +5.20 N ft · visually nudged -1.61 E / +2.87 N ft",
+      "description": "Front yard fixed point at A2 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged -1.08 E / +5.20 N ft \u00b7 visually nudged -1.61 E / +2.87 N ft",
       "marker_label": "Front Fixed Point (A2)"
     },
     "rotation_deg": 3.0,
@@ -1819,7 +1843,7 @@
         "anchor": {
           "lat": 42.9198721,
           "lon": -78.82601839,
-          "description": "Front yard fixed point at A2 (Top-Left) — field-measured GPS · visually nudged -1.08 E / +5.20 N ft · visually nudged -1.61 E / +2.87 N ft",
+          "description": "Front yard fixed point at A2 (Top-Left) \u2014 field-measured GPS \u00b7 visually nudged -1.08 E / +5.20 N ft \u00b7 visually nudged -1.61 E / +2.87 N ft",
           "marker_label": "Front Fixed Point (A2)"
         },
         "rotation_deg": 3.0,
@@ -1870,7 +1894,7 @@
         "anchor": {
           "lat": 42.91985,
           "lon": -78.82600833,
-          "description": "Back yard fixed point at A2 (Top-Left) — field-measured GPS",
+          "description": "Back yard fixed point at A2 (Top-Left) \u2014 field-measured GPS",
           "marker_label": "Back Fixed Point (A2)"
         },
         "rotation_deg": 3.0,

@@ -81,3 +81,12 @@ credentials.json
 # Streamlit secrets (subdirectory variant)
 src/.streamlit/
 **/.streamlit/secrets.toml
+
+# One-shot data reconciliation artifacts (July 2026) — not pipeline code
+*.bak
+*.pre-bridge-removal
+reconcile_july2025.py
+Reconcile_july2025.py
+audit_july_pitt.py
+patch_patterns_20250708.py
+reconcile_july2025_changelog_*.csv
