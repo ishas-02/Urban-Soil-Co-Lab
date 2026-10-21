@@ -195,7 +195,9 @@ def generate_sequential_master_versions():
             output_filename = os.path.join(
                 output_dir, f'XRF_Chemistry_V{current_version}.csv'
             )
-            master_df.to_csv(output_filename, index=False)
+            from safe_io import data_lock, atomic_write_csv
+            with data_lock():
+                atomic_write_csv(master_df, output_filename)
 
             print(f"✅ Processed {os.path.basename(file_path)}: "
                   f"added {len(clean_df)} readings.")

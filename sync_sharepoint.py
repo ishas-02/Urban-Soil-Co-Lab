@@ -12,7 +12,7 @@ Policy:
   * First run: same size both sides -> assume in-sync; size mismatch -> SharePoint wins.
 
 Excludes (BOTH sides):
-  .DS_Store, *.backup.*, __*test*, *.pdf, sync bookkeeping,
+  .DS_Store, *.backup.*, __*test*, *.pdf, sync bookkeeping, .locks/, .tmp_*,
   AND generated_reports/ (regenerable outputs — kept off the synced volume).
 
 Backup retention: .sync_backups/ pruned to the most recent BACKUP_KEEP runs.
@@ -22,6 +22,10 @@ Requires: msal, requests
 """
 import os, sys, json, shutil, datetime as dt
 import requests, msal
+
+# Shared cross-pod write lock + atomic writes (src/safe_io.py).
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
+from safe_io import data_lock, atomic_write_bytes, TMP_PREFIX
 
 TENANT_ID=os.environ.get("SP_TENANT_ID")
 CLIENT_ID=os.environ.get("SP_CLIENT_ID","448531da-6d44-4729-8761-3f518ad44bfa")
@@ -47,6 +51,8 @@ def _excluded(rel):
     name=os.path.basename(rel)
     if name==".DS_Store": return True
     if rel.startswith(".sync_state.json") or rel.startswith(".sync_backups"): return True
+    if rel.startswith(".locks"): return True                 # cross-pod lock dir
+    if name.startswith(TMP_PREFIX): return True             # in-progress atomic writes
     if ".backup." in name: return True
     if name.startswith("__") and "test" in name: return True
     if name.lower().endswith(".pdf"): return True
@@ -124,7 +130,8 @@ def backup_local(rel):
     if not os.path.exists(src): return
     if DRY_RUN: log(f"   [DRY] would back up local {rel}"); return
     dst=os.path.join(BACKUP_DIR,RUN_TS,rel); os.makedirs(os.path.dirname(dst),exist_ok=True)
-    shutil.copy2(src,dst); log(f"   backed up local {rel}")
+    with data_lock(): shutil.copy2(src,dst)
+    log(f"   backed up local {rel}")
 
 def download(headers,rel,meta):
     if DRY_RUN: log(f"   [DRY] would DOWNLOAD {rel}"); return
@@ -135,13 +142,15 @@ def download(headers,rel,meta):
         url=r.json().get("@microsoft.graph.downloadUrl")
     r=requests.get(url)
     if r.status_code!=200: log(f"   ERROR download {rel}: {r.status_code}"); return
-    with open(dst,"wb") as f: f.write(r.content)
+    # Network fetch happens OUTSIDE the lock; only the swap-in is locked.
+    with data_lock(): atomic_write_bytes(r.content,dst)
     log(f"   DOWNLOADED {rel}")
 
 def upload(headers,rel,path):
     if DRY_RUN: log(f"   [DRY] would UPLOAD {rel}"); return
     target=f"{SP_ROOT}/{rel}".replace("\\","/")
-    with open(path,"rb") as f: content=f.read()
+    with data_lock():                     # never read a file mid-write
+        with open(path,"rb") as f: content=f.read()
     if len(content)<4*1024*1024:
         r=requests.put(f"{GRAPH}/sites/{SITE_ID}/drive/root:/{target}:/content",headers=headers,data=content)
     else:

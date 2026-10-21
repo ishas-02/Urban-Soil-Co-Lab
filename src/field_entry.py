@@ -742,70 +742,72 @@ def write_field_csv(df: pd.DataFrame, path: str) -> int:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     session_rows = df.reindex(columns=COLUMNS).fillna("")
  
+    from safe_io import data_lock
     last_err = None
     for attempt in range(5):
         try:
-            on_disk = load_existing_rows(path)
+            with data_lock():
+                on_disk = load_existing_rows(path)
  
-            # Replicate-aware delta on (SiteID, SampleID). Notes is carried
-            # along but not part of the identity key — two rows with the
-            # same SiteID+SampleID are the same sample regardless of note.
-            key_cols = ["SiteID", "SampleID"]
-            disk_counts = (
-                on_disk.groupby(key_cols).size()
-                if len(on_disk) else pd.Series(dtype=int)
-            )
-            sess_grp = (
-                session_rows.groupby(key_cols)
-                if len(session_rows) else None
-            )
-            sess_counts = (
-                sess_grp.size() if sess_grp is not None else pd.Series(dtype=int)
-            )
+                # Replicate-aware delta on (SiteID, SampleID). Notes is carried
+                # along but not part of the identity key — two rows with the
+                # same SiteID+SampleID are the same sample regardless of note.
+                key_cols = ["SiteID", "SampleID"]
+                disk_counts = (
+                    on_disk.groupby(key_cols).size()
+                    if len(on_disk) else pd.Series(dtype=int)
+                )
+                sess_grp = (
+                    session_rows.groupby(key_cols)
+                    if len(session_rows) else None
+                )
+                sess_counts = (
+                    sess_grp.size() if sess_grp is not None else pd.Series(dtype=int)
+                )
  
-            to_append = []
-            for key, n_sess in sess_counts.items():
-                n_disk = int(disk_counts.get(key, 0))
-                delta = int(n_sess) - n_disk
-                if delta > 0:
-                    site_id, sample_id = key
-                    # Carry the note from this group's session rows (first
-                    # non-empty wins; blank if none).
-                    grp = session_rows[
-                        (session_rows["SiteID"] == site_id)
-                        & (session_rows["SampleID"] == sample_id)
-                    ]
-                    note_vals = [n for n in grp["Notes"].tolist() if str(n).strip()]
-                    note = note_vals[0] if note_vals else ""
-                    to_append.extend(
-                        [{"SiteID": site_id, "SampleID": sample_id, "Notes": note}]
-                        * delta
-                    )
+                to_append = []
+                for key, n_sess in sess_counts.items():
+                    n_disk = int(disk_counts.get(key, 0))
+                    delta = int(n_sess) - n_disk
+                    if delta > 0:
+                        site_id, sample_id = key
+                        # Carry the note from this group's session rows (first
+                        # non-empty wins; blank if none).
+                        grp = session_rows[
+                            (session_rows["SiteID"] == site_id)
+                            & (session_rows["SampleID"] == sample_id)
+                        ]
+                        note_vals = [n for n in grp["Notes"].tolist() if str(n).strip()]
+                        note = note_vals[0] if note_vals else ""
+                        to_append.extend(
+                            [{"SiteID": site_id, "SampleID": sample_id, "Notes": note}]
+                            * delta
+                        )
  
-            if not to_append:
-                return 0  # Nothing new; leave disk untouched.
+                if not to_append:
+                    return 0  # Nothing new; leave disk untouched.
  
-            combined = pd.concat(
-                [on_disk, pd.DataFrame(to_append, columns=COLUMNS)],
-                ignore_index=True,
-            ).reindex(columns=COLUMNS).fillna("")
+                combined = pd.concat(
+                    [on_disk, pd.DataFrame(to_append, columns=COLUMNS)],
+                    ignore_index=True,
+                ).reindex(columns=COLUMNS).fillna("")
  
-            # Atomic write
-            dir_ = os.path.dirname(path)
-            fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", suffix=".csv", dir=dir_)
-            try:
-                with os.fdopen(fd, "w", newline="", encoding="utf-8") as f:
-                    writer = csv.writer(f)
-                    writer.writerow(COLUMNS)
-                    for _, row in combined.iterrows():
-                        writer.writerow([row.get(c, "") for c in COLUMNS])
-                os.replace(tmp_path, path)
-            except Exception:
-                if os.path.exists(tmp_path):
-                    try: os.remove(tmp_path)
-                    except OSError: pass
-                raise
-            return len(to_append)
+                # Atomic write
+                dir_ = os.path.dirname(path)
+                fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", suffix=".csv", dir=dir_)
+                try:
+                    with os.fdopen(fd, "w", newline="", encoding="utf-8") as f:
+                        writer = csv.writer(f)
+                        writer.writerow(COLUMNS)
+                        for _, row in combined.iterrows():
+                            writer.writerow([row.get(c, "") for c in COLUMNS])
+                    os.replace(tmp_path, path)
+                except Exception:
+                    if os.path.exists(tmp_path):
+                        try: os.remove(tmp_path)
+                        except OSError: pass
+                    raise
+                return len(to_append)
  
         except PermissionError as e:
             last_err = e

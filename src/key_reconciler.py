@@ -437,6 +437,8 @@ import re
 
 import pandas as pd
 
+from safe_io import atomic_write_csv
+
 # --- Tolerance for LeadPPM agreement -------------------------------------
 # Two readings agree if they're within EITHER:
 #   - PPM_TOLERANCE_ABS ppm absolute, OR
@@ -655,7 +657,7 @@ def _refresh_master(
     )
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    out_df.to_csv(out_path, index=False)
+    atomic_write_csv(out_df, out_path)
 
     # Helpful summary in the log.
     counts = out_df["status"].value_counts()
@@ -671,6 +673,19 @@ def _refresh_master(
 
 # ─── Main entry point ────────────────────────────────────────────────────
 def reconcile(repo_root: str) -> dict | None:
+    """Locked wrapper — see _reconcile_unlocked for the full description.
+
+    reconcile() is called from TWO different pods (xrf-tech after every
+    save, etl-manager after every pipeline run) and rewrites up to five
+    files. Holding the shared data lock makes each pass all-or-nothing
+    with respect to other writers.
+    """
+    from safe_io import data_lock
+    with data_lock():
+        return _reconcile_unlocked(repo_root)
+
+
+def _reconcile_unlocked(repo_root: str) -> dict | None:
     """Run a full reconciliation pass over BOTH the Site and Clinic sides.
 
     Each side is reconciled independently against the same chem file:
@@ -735,7 +750,7 @@ def reconcile(repo_root: str) -> dict | None:
     # ── SITE side ────────────────────────────────────────────────
     site_df_annotated = _annotate_status(site_df, chem_lookup)
     if site_df_annotated is not None and not site_df_annotated.empty:
-        site_df_annotated.to_csv(site_path, index=False)
+        atomic_write_csv(site_df_annotated, site_path)
         counts = site_df_annotated["status"].value_counts()
         summary["site"]["matched"]     = int(counts.get("match", 0))
         summary["site"]["discrepancy"] = int(counts.get("discrepancy", 0))
@@ -744,7 +759,7 @@ def reconcile(repo_root: str) -> dict | None:
     # ── CLINIC side ──────────────────────────────────────────────
     clinic_df_annotated = _annotate_status(clinic_df, chem_lookup)
     if clinic_df_annotated is not None and not clinic_df_annotated.empty:
-        clinic_df_annotated.to_csv(clinic_path, index=False)
+        atomic_write_csv(clinic_df_annotated, clinic_path)
         counts = clinic_df_annotated["status"].value_counts()
         summary["clinic"]["matched"]     = int(counts.get("match", 0))
         summary["clinic"]["discrepancy"] = int(counts.get("discrepancy", 0))
@@ -775,7 +790,7 @@ def reconcile(repo_root: str) -> dict | None:
                 statuses.append("discrepancy")
         chem_df = chem_df.copy()
         chem_df["status"] = statuses
-        chem_df.to_csv(chem_path, index=False)
+        atomic_write_csv(chem_df, chem_path)
 
     # ── Refresh the master CSVs (one per side) ──────────────────────
     # ALWAYS refresh — discrepancy and pending rows are included with

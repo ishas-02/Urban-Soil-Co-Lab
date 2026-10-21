@@ -2294,25 +2294,30 @@ if "generated_config" in st.session_state:
         config_dir = os.path.dirname(config_path)
         os.makedirs(config_dir, exist_ok=True)
  
-        existing = []
-        if os.path.exists(config_path):
-            try:
-                with open(config_path) as f:
-                    existing = json.load(f)
-            except Exception:
-                existing = []
- 
-        found = False
-        for i, s in enumerate(existing):
-            if s.get("site_id") == updated_config["site_id"]:
-                existing[i] = updated_config
-                found = True
-                break
-        if not found:
-            existing.append(updated_config)
- 
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(existing, f, indent=2, ensure_ascii=False)
+        from safe_io import data_lock, atomic_write_json
+        with data_lock():
+            existing = []
+            if os.path.exists(config_path):
+                try:
+                    with open(config_path) as f:
+                        existing = json.load(f)
+                except Exception:
+                    # Never overwrite a file we couldn't read — that would
+                    # wipe every other site's config.
+                    st.error("❌ Could not read the existing site_configs.json, so nothing "
+                             "was saved (to avoid overwriting other sites). Please tell Isha.")
+                    st.stop()
+
+            found = False
+            for i, s in enumerate(existing):
+                if s.get("site_id") == updated_config["site_id"]:
+                    existing[i] = updated_config
+                    found = True
+                    break
+            if not found:
+                existing.append(updated_config)
+
+            atomic_write_json(existing, config_path)
  
         # Push the same updated JSON to GitHub so changes made on the
         # deployed Streamlit app can be pulled back onto your laptop.

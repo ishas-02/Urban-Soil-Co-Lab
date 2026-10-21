@@ -1229,12 +1229,28 @@ def _do_save_and_reconcile(pending, manual_file_path, download_filename):
     rerun after this returns successfully.
     """
     try:
+        from safe_io import data_lock, atomic_write_csv
         os.makedirs(os.path.dirname(manual_file_path), exist_ok=True)
         df_new = pd.DataFrame(pending["records"])
-        if os.path.exists(manual_file_path):
-            df_new.to_csv(manual_file_path, mode="a", header=False, index=False)
-        else:
-            df_new.to_csv(manual_file_path, mode="w", header=True, index=False)
+        # Locked read-modify-write + atomic replace (was a plain append).
+        # Reading as str keeps every existing cell byte-for-byte (e.g. the
+        # '#DIV/0!' artifacts) — only new rows are added at the bottom.
+        with data_lock():
+            if os.path.exists(manual_file_path):
+                existing_df = pd.read_csv(manual_file_path, dtype=str,
+                                          keep_default_na=False)
+                cols = list(existing_df.columns)
+                for c in df_new.columns:
+                    if c not in cols:
+                        cols.append(c)
+                combined = pd.concat(
+                    [existing_df.reindex(columns=cols, fill_value=""),
+                     df_new.reindex(columns=cols, fill_value="")],
+                    ignore_index=True,
+                )
+            else:
+                combined = df_new
+            atomic_write_csv(combined, manual_file_path)
         st.success(
             f"💾 **Saved {len(df_new)} row(s) to `{download_filename}`** "
             f"({pending['mode']})."
@@ -1260,9 +1276,14 @@ def _do_replace_and_reconcile(pending, manual_file_path, download_filename,
     Caller is responsible for clearing session state and triggering the
     rerun.
     """
+    from contextlib import ExitStack
+    from safe_io import data_lock, atomic_write_csv
+    _lock = ExitStack()   # releases the data lock exactly once, on every path
     try:
+        _lock.enter_context(data_lock())
         if os.path.exists(manual_file_path):
-            existing_df = pd.read_csv(manual_file_path, dtype=str).fillna("")
+            existing_df = pd.read_csv(manual_file_path, dtype=str,
+                                      keep_default_na=False).fillna("")
             # Reset index so iloc slicing uses positional indices we control.
             existing_df = existing_df.reset_index(drop=True)
         else:
@@ -1321,7 +1342,8 @@ def _do_replace_and_reconcile(pending, manual_file_path, download_filename,
         combined = pd.concat([above, new_df, below], ignore_index=True)
 
         os.makedirs(os.path.dirname(manual_file_path), exist_ok=True)
-        combined.to_csv(manual_file_path, index=False)
+        atomic_write_csv(combined, manual_file_path)
+        _lock.close()
 
         st.success(
             f"💾 **Replaced {existing_count} old row(s) with "
@@ -1329,6 +1351,7 @@ def _do_replace_and_reconcile(pending, manual_file_path, download_filename,
             f"`{sample_id}` in `{download_filename}`."
         )
     except Exception as e:
+        _lock.close()
         st.error(f"❌ Replace failed: {e}")
         st.stop()
 

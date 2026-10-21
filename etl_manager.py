@@ -716,9 +716,9 @@ if st.button("🚀 Execute Data Pipeline", type="primary", use_container_width=T
                 # 1. Save uploaded files
                 xrf_dir = os.path.join("data", "xrf_data")
                 os.makedirs(xrf_dir, exist_ok=True)
+                from safe_io import atomic_write_bytes
                 for f in uploaded_files:
-                    with open(os.path.join(xrf_dir, f.name), "wb") as f_out:
-                        f_out.write(f.read())
+                    atomic_write_bytes(f.read(), os.path.join(xrf_dir, f.name))
  
                 # 1b. If fresh rebuild, clear old master data
                 if fresh_rebuild:
