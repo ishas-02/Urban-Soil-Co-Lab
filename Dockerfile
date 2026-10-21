@@ -35,9 +35,9 @@ ENV APP_FILE=src/xrf_tech.py \
 USER 0
 
 # Install Python deps first (cached layer if requirements unchanged)
-COPY requirements.txt .
+COPY requirements.txt constraints.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt -c constraints.txt
 
 # Copy app code
 COPY . .
