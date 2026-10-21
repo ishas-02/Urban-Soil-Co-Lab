@@ -4655,6 +4655,20 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# Green/red health pill, top-right (see src/status_badge.py).
+try:
+    import os as _os, sys as _sys
+    _here = _os.path.dirname(_os.path.abspath(__file__))
+    _src = next(d for d in (_here, _os.path.join(_here, 'src'))
+                if _os.path.exists(_os.path.join(d, 'status_badge.py')))
+    if _src not in _sys.path:
+        _sys.path.insert(0, _src)
+    from status_badge import render_status_badge
+    render_status_badge('Dashboard')
+except Exception:
+    pass
+
  
 st.markdown("""
 <style>

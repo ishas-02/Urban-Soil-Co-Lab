@@ -1124,6 +1124,20 @@ if _HERE not in sys.path:
 # ═════════════════════════════════════════════
 st.set_page_config(page_title="XRF Technician QA/QC Form", page_icon="🧪", layout="centered")
 
+# Green/red health pill, top-right (see src/status_badge.py).
+try:
+    import os as _os, sys as _sys
+    _here = _os.path.dirname(_os.path.abspath(__file__))
+    _src = next(d for d in (_here, _os.path.join(_here, 'src'))
+                if _os.path.exists(_os.path.join(d, 'status_badge.py')))
+    if _src not in _sys.path:
+        _sys.path.insert(0, _src)
+    from status_badge import render_status_badge
+    render_status_badge('XRF Tech')
+except Exception:
+    pass
+
+
 
 # ═════════════════════════════════════════════
 #  SECURITY GATEKEEPER (SINGLE PASSWORD MODE)
