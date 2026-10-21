@@ -1501,6 +1501,16 @@ if data_mode == "Clinic_Master_Data":
             height=100, key="notes_input",
         )
     st.markdown("---")
+else:
+    # ─── Site-specific fields ─────────────────────────────
+    # Same widget key as Clinic, so the existing reset handler clears it
+    # after each Save. Saved on the sample's first reading row, exactly
+    # like Clinic Notes / LeadAvg.
+    notes = st.text_area(
+        "Notes (optional)",
+        placeholder="Add any specific sample observations here...",
+        height=80, key="notes_input",
+    )
 
 
 # ═════════════════════════════════════════════
@@ -1681,7 +1691,7 @@ if analyze_clicked:
                     "pH": ph_val if ridx == 0 and ph_val is not None else "",
                     "LeadPPM": val,
                     "LeadAvg": current_avg if ridx == 0 else "",
-                    "Notes": notes if ridx == 0 else "",
+                    "Notes": notes.strip() if ridx == 0 else "",
                 })
             else:
                 records.append({
@@ -1689,6 +1699,7 @@ if analyze_clicked:
                     "XRFID": xrfid,
                     "LeadPPM": val,
                     "LeadAvg": current_avg if ridx == 0 else "",
+                    "Notes": notes.strip() if ridx == 0 else "",
                 })
 
         # Stash everything for the preview/save step.
