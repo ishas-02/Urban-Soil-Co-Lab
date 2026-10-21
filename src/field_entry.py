@@ -631,7 +631,13 @@
 
 import csv
 import os
+import sys
 from datetime import datetime
+
+# Make sibling modules (safe_io) importable however the app is launched.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
  
 import pandas as pd
 import streamlit as st
@@ -663,7 +669,6 @@ WIDGET_KEYS = [
     "custom_label_input",
     "initials_input",
     "notes_input",
-    "replicates_input",
 ]
  
 # Keys cleared after a successful "Add Sample".
@@ -726,12 +731,23 @@ def load_existing_rows(path: str) -> pd.DataFrame:
         return pd.DataFrame(columns=COLUMNS)
  
  
+def _row_keys(df: pd.DataFrame) -> set:
+    """Set of (SiteID, SampleID) pairs present in a rows frame."""
+    if df is None or not len(df) or "SiteID" not in df or "SampleID" not in df:
+        return set()
+    return {
+        (str(a).strip(), str(b).strip())
+        for a, b in zip(df["SiteID"].fillna(""), df["SampleID"].fillna(""))
+        if str(a).strip() and str(b).strip()
+    }
+
+
 def write_field_csv(df: pd.DataFrame, path: str) -> int:
     """Append session rows to the on-disk CSV without clobbering existing rows.
  
     Re-reads disk right before writing, compares against the session
-    DataFrame on (SiteID, SampleID) tuples with replicate-count awareness,
-    and appends only the delta. Notes travel with each appended row.
+    DataFrame on (SiteID, SampleID) keys and appends one row for each
+    new sample (older 3-row samples are left untouched). Notes travel with each appended row.
  
     Returns the number of NEW rows actually written to disk (0 if the
     session held nothing that wasn't already saved). Writes atomically
@@ -749,41 +765,27 @@ def write_field_csv(df: pd.DataFrame, path: str) -> int:
             with data_lock():
                 on_disk = load_existing_rows(path)
  
-                # Replicate-aware delta on (SiteID, SampleID). Notes is carried
-                # along but not part of the identity key — two rows with the
-                # same SiteID+SampleID are the same sample regardless of note.
-                key_cols = ["SiteID", "SampleID"]
-                disk_counts = (
-                    on_disk.groupby(key_cols).size()
-                    if len(on_disk) else pd.Series(dtype=int)
-                )
-                sess_grp = (
-                    session_rows.groupby(key_cols)
-                    if len(session_rows) else None
-                )
-                sess_counts = (
-                    sess_grp.size() if sess_grp is not None else pd.Series(dtype=int)
-                )
- 
+                # Key-based delta on (SiteID, SampleID): write ONE row for every
+                # sample in the session that is not on disk yet. Older samples saved
+                # with 3 identical rows are left exactly as they are and still count
+                # as "on disk", so they are never duplicated. Notes travel with the
+                # row (first non-empty note in the session wins).
+                disk_keys = _row_keys(on_disk)
                 to_append = []
-                for key, n_sess in sess_counts.items():
-                    n_disk = int(disk_counts.get(key, 0))
-                    delta = int(n_sess) - n_disk
-                    if delta > 0:
-                        site_id, sample_id = key
-                        # Carry the note from this group's session rows (first
-                        # non-empty wins; blank if none).
-                        grp = session_rows[
-                            (session_rows["SiteID"] == site_id)
-                            & (session_rows["SampleID"] == sample_id)
-                        ]
-                        note_vals = [n for n in grp["Notes"].tolist() if str(n).strip()]
-                        note = note_vals[0] if note_vals else ""
-                        to_append.extend(
-                            [{"SiteID": site_id, "SampleID": sample_id, "Notes": note}]
-                            * delta
-                        )
- 
+                seen = set()
+                for _, r in session_rows.iterrows():
+                    key = (str(r["SiteID"]).strip(), str(r["SampleID"]).strip())
+                    if not key[0] or not key[1] or key in disk_keys or key in seen:
+                        continue
+                    seen.add(key)
+                    grp = session_rows[
+                        (session_rows["SiteID"].astype(str).str.strip() == key[0])
+                        & (session_rows["SampleID"].astype(str).str.strip() == key[1])
+                    ]
+                    note_vals = [n for n in grp["Notes"].tolist() if str(n).strip()]
+                    to_append.append({"SiteID": key[0], "SampleID": key[1],
+                                      "Notes": note_vals[0] if note_vals else ""})
+
                 if not to_append:
                     return 0  # Nothing new; leave disk untouched.
  
@@ -1088,14 +1090,10 @@ with left_col:
         key="notes_input",
     ).strip()
  
-    # ── Replicates ──
-    replicates = st.number_input(
-        "Number of replicates (rows to write for this SampleID)",
-        min_value=1, max_value=10, value=3,
-        help="Convention: 3 readings per sample, so 3 rows per SampleID.",
-        key="replicates_input",
-    )
- 
+    # One row per SampleID. The number of XRF readings for a sample is
+    # decided in the XRF Tech app (3, 4, …), never here — every reading is
+    # linked back to its site by SampleID, not by row count.
+
     # ── Add button ──
     add_clicked = st.button(
         "➕ Add Sample", type="primary", use_container_width=True,
@@ -1120,22 +1118,27 @@ with left_col:
                 initials=initials_value,
             )
             normalized_site_id = normalize_site_id(site_id)
-            additions = [
-                {
+            key = (normalized_site_id, sample_id)
+            in_list = _row_keys(st.session_state.rows)
+            on_server = _row_keys(load_existing_rows(OUTPUT_PATH))
+            if key in in_list:
+                st.warning(f"`{sample_id}` is already in the review list — not added again.")
+            elif key in on_server:
+                st.warning(f"`{sample_id}` is already saved on the server — not added again.")
+            else:
+                additions = [{
                     "SiteID": normalized_site_id,
                     "SampleID": sample_id,
                     "Notes": notes_value,
-                }
-                for _ in range(int(replicates))
-            ]
-            st.session_state.rows = pd.concat(
-                [st.session_state.rows, pd.DataFrame(additions, columns=COLUMNS)],
-                ignore_index=True,
-            )
-            # Stash a one-shot success message + trigger reset on next rerun.
-            st.session_state["_last_added"] = (sample_id, int(replicates))
-            st.session_state["_pending_reset"] = True
-            st.rerun()
+                }]
+                st.session_state.rows = pd.concat(
+                    [st.session_state.rows, pd.DataFrame(additions, columns=COLUMNS)],
+                    ignore_index=True,
+                )
+                # Stash a one-shot success message + trigger reset on next rerun.
+                st.session_state["_last_added"] = (sample_id, 1)
+                st.session_state["_pending_reset"] = True
+                st.rerun()
  
  
 # ───────────────────────────────────────────────
@@ -1148,7 +1151,7 @@ with right_col:
     last_added = st.session_state.pop("_last_added", None)
     if last_added:
         sid, n = last_added
-        st.success(f"Added {n} row(s):\n`{sid}`")
+        st.success(f"Added:\n`{sid}`")
  
     # Live preview of the SampleID being built.
     time_ok = (not multi_site_today) or bool(time_value)
