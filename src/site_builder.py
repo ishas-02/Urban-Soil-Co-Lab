@@ -45,7 +45,7 @@ def load_master_data():
     values when rendering the exported maps. Returns empty df if missing.
     """
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    master_dir = os.path.join(base_dir, "..", "data", "XRF_Data")
+    master_dir = os.path.join(base_dir, "..", "data", "xrf_data")
     master_files = glob.glob(os.path.join(master_dir, "XRF_Chemistry_V*.csv"))
     if not master_files:
         return pd.DataFrame(columns=["SampleID", "LeadPPM", "LeadPPM_Clean"])

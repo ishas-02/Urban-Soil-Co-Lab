@@ -9,7 +9,7 @@ Why this exists:
 
 Usage (in any app):
     from paths import DATA_DIR
-    csv_path = DATA_DIR / "XRF_Chemistry" / "something.csv"
+    csv_path = DATA_DIR / "xrf_chemistry" / "something.csv"
 
 The DATA_DIR resolves in this priority order:
     1. SOIL_DATA_DIR environment variable (set in OpenShift Deployment)
@@ -33,10 +33,10 @@ else:
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Convenience subpaths — add more here as needed
-XRF_DATA_DIR = DATA_DIR / "XRF_Data"            # versioned XRF_Chemistry_V*.csv
+XRF_DATA_DIR = DATA_DIR / "xrf_data"            # versioned XRF_Chemistry_V*.csv
 SITE_DATABASES_DIR = DATA_DIR / "site_databases"
 SITE_CONFIGS_DIR = DATA_DIR / "site_configs"
-XRF_CHEMISTRY_DIR = DATA_DIR / "XRF_Chemistry"  # raw instrument CSVs
+XRF_CHEMISTRY_DIR = DATA_DIR / "xrf_chemistry"  # raw instrument CSVs
 XRF_TECH_SITE_DIR = DATA_DIR / "XRF_Technician_Site_Data"
 XRF_TECH_CLINIC_DIR = DATA_DIR / "XRF_Technician_Clinic_Data"
 MASTER_DATA_DIR = DATA_DIR / "master_data"

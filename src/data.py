@@ -13,8 +13,8 @@ KEY DESIGN:
     - Duplicate chemistry file uploads (-1 / -2 copies)
 
 Directory layout (relative to repo root):
-  data/XRF_Chemistry/           ← raw chemistry CSVs from the XRF instrument
-  data/XRF_Data/                ← versioned XRF_Chemistry_V*.csv output
+  data/xrf_chemistry/           ← raw chemistry CSVs from the XRF instrument
+  data/xrf_data/                ← versioned XRF_Chemistry_V*.csv output
   data/site_databases/          ← Site_Master_Data.csv (the canonical key)
 """
 
@@ -29,8 +29,8 @@ def generate_sequential_master_versions():
 
     # ── Folder configuration ──
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    input_dir    = os.path.join(base_dir, 'data', 'XRF_Chemistry')   # raw instrument CSVs
-    output_dir   = os.path.join(base_dir, 'data', 'XRF_Data')        # XRF_Chemistry_V*.csv versions
+    input_dir    = os.path.join(base_dir, 'data', 'xrf_chemistry')   # raw instrument CSVs
+    output_dir   = os.path.join(base_dir, 'data', 'xrf_data')        # XRF_Chemistry_V*.csv versions
     # Preferred: the reconciled key produced by key_reconciler.py
     key_file     = os.path.join(
         base_dir, 'data', 'XRF_Technician_Site_Data',

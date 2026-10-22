@@ -4736,7 +4736,7 @@ st.markdown("""
 @st.cache_data
 def load_chemistry_data():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(base_dir, '..', 'data', 'XRF_Chemistry')   # raw instrument CSVs
+    data_dir = os.path.join(base_dir, '..', 'data', 'xrf_chemistry')   # raw instrument CSVs
     files = glob.glob(os.path.join(data_dir, 'chemistry*.csv'))
     if not files:
         return pd.DataFrame()
@@ -4823,7 +4823,7 @@ def _load_sample_to_site_mapping():
 @st.cache_data
 def load_master_data():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    master_dir = os.path.join(base_dir, '..', 'data', 'XRF_Data')
+    master_dir = os.path.join(base_dir, '..', 'data', 'xrf_data')
     master_files = glob.glob(os.path.join(master_dir, 'XRF_Chemistry_V*.csv'))
     if not master_files:
         return pd.DataFrame()
@@ -5212,7 +5212,7 @@ site_configs = load_site_configs()
 if chem_df.empty:
     st.error(
         "**No XRF data found.** Please ensure chemistry CSV files "
-        "are in the `data/XRF_Chemistry/` directory."
+        "are in the `data/xrf_chemistry/` directory."
     )
     st.stop()
 

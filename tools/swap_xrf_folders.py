@@ -3,13 +3,13 @@ swap_xrf_folders.py — one-time rename of the two XRF folders, on the data
 volume AND in SharePoint, in one coordinated step.
 
     BEFORE (old)                          AFTER (new)
-    xrf_data/       raw instrument CSVs   XRF_Chemistry/  raw instrument CSVs
-    XRF_Chemistry/  XRF_Chemistry_V*.csv  XRF_Data/       XRF_Chemistry_V*.csv
+    xrf_data/       raw instrument CSVs   xrf_chemistry/  raw instrument CSVs
+    XRF_Chemistry/  XRF_Chemistry_V*.csv  xrf_data/       XRF_Chemistry_V*.csv
 
 Why a script and not a manual rename:
   * The hourly sync never deletes. Renaming on one side only would make the
     next sync copy the old folders back and MIX raw and versioned files.
-  * SharePoint ignores letter case (xrf_data == XRF_Data), so the swap
+  * SharePoint ignores letter case (XRF_Chemistry == xrf_chemistry), so the swap
     needs a temporary third name.
   * .sync_state.json records every file by path; it is rewritten here so the
     next sync sees "nothing changed" instead of 60+ conflicts.
@@ -38,8 +38,8 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "src"))
 
 RAW_PAT, VER_PAT = "chemistry*.csv", "XRF_Chemistry_V*.csv"
-CANDIDATES = ["xrf_data", "XRF_Chemistry", "XRF_Data"]
-TARGETS = {"new": {"raw": "XRF_Chemistry", "ver": "XRF_Data"},
+CANDIDATES = ["xrf_data", "XRF_Chemistry", "xrf_chemistry", "XRF_Data"]
+TARGETS = {"new": {"raw": "xrf_chemistry", "ver": "xrf_data"},
            "old": {"raw": "xrf_data", "ver": "XRF_Chemistry"}}
 TMP = "_swap_tmp_versions"
 
