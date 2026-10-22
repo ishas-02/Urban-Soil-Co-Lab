@@ -1,0 +1,45 @@
+# One-off Job: run tools/swap_xrf_folders.py inside the cluster with the
+# SharePoint credentials and the soil-data volume.
+#
+#   Dry run :  sed 's/__ARGS__//'        tools/swap-xrf-folders-job.yaml | oc create -f -
+#   Apply   :  sed 's/__ARGS__/--apply/' tools/swap-xrf-folders-job.yaml | oc create -f -
+#   Undo    :  sed 's/__ARGS__/--apply --to old/' tools/swap-xrf-folders-job.yaml | oc create -f -
+#   Logs    :  oc logs -f job/<name printed by oc create>
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: swap-xrf-folders-
+  namespace: urban-soil-co-lab
+spec:
+  backoffLimit: 0                  # never retry automatically
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      activeDeadlineSeconds: 300   # keeps it outside the NotTerminating quota, like the sync job
+      restartPolicy: Never
+      containers:
+        - name: swap
+          image: image-registry.openshift-image-registry.svc:5000/urban-soil-co-lab/xrf-tech:latest
+          imagePullPolicy: Always
+          workingDir: /opt/app-root/src
+          command: ["sh", "-c", "python tools/swap_xrf_folders.py __ARGS__"]
+          env:
+            - name: SOIL_DATA_DIR
+              value: /opt/app-root/src/data
+            - name: SP_TENANT_ID
+              valueFrom: { secretKeyRef: { name: sharepoint-sync, key: SP_TENANT_ID } }
+            - name: SP_CLIENT_ID
+              valueFrom: { secretKeyRef: { name: sharepoint-sync, key: SP_CLIENT_ID } }
+            - name: SP_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: sharepoint-sync, key: SP_CLIENT_SECRET } }
+          resources:
+            requests: { memory: "128Mi", cpu: "100m" }
+            limits:   { memory: "256Mi", cpu: "200m" }
+          volumeMounts:
+            - name: soil-data
+              mountPath: /opt/app-root/src/data
+      volumes:
+        - name: soil-data
+          persistentVolumeClaim:
+            claimName: soil-data

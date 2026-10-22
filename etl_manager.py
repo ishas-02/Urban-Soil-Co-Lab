@@ -728,7 +728,7 @@ if st.button("🚀 Execute Data Pipeline", type="primary", use_container_width=T
         with st.status("Executing the Data Pipeline...", expanded=False) as status:
             try:
                 # 1. Save uploaded files
-                xrf_dir = os.path.join("data", "xrf_data")
+                xrf_dir = os.path.join("data", "XRF_Chemistry")   # raw instrument CSVs
                 os.makedirs(xrf_dir, exist_ok=True)
                 from safe_io import atomic_write_bytes
                 for f in uploaded_files:
@@ -736,11 +736,15 @@ if st.button("🚀 Execute Data Pipeline", type="primary", use_container_width=T
  
                 # 1b. If fresh rebuild, clear old master data
                 if fresh_rebuild:
-                    master_dir = os.path.join("data", "XRF_Chemistry")
-                    if os.path.exists(master_dir):
-                        import shutil
-                        shutil.rmtree(master_dir)
+                    # Delete ONLY the versioned XRF_Chemistry_V*.csv files —
+                    # never a whole folder, so a wrong path can never wipe the
+                    # raw instrument files.
+                    master_dir = os.path.join("data", "XRF_Data")
                     os.makedirs(master_dir, exist_ok=True)
+                    from safe_io import data_lock
+                    with data_lock():
+                        for _old in glob.glob(os.path.join(master_dir, "XRF_Chemistry_V*.csv")):
+                            os.remove(_old)
                     st.info("🗑️ Cleared old Master Data. Rebuilding from scratch.")
  
                 # 2. Run ETL script
@@ -760,7 +764,7 @@ if st.button("🚀 Execute Data Pipeline", type="primary", use_container_width=T
                     st.stop()
  
                 # 3. Locate Master Data
-                master_dir = os.path.join("data", "XRF_Chemistry")
+                master_dir = os.path.join("data", "XRF_Data")
                 master_files = glob.glob(
                     os.path.join(master_dir, 'XRF_Chemistry_V*.csv')
                 )

@@ -452,7 +452,7 @@ PPM_TOLERANCE_REL: float = 0.05  # 5%
 # ─── Path resolution ─────────────────────────────────────────────────────
 def _find_chem_dir(repo_root: str) -> str:
     """Return the directory holding XRF_Chemistry_V*.csv files."""
-    return os.path.join(repo_root, "data", "XRF_Chemistry")
+    return os.path.join(repo_root, "data", "XRF_Data")
 
 
 def _find_site_lab_path(repo_root: str) -> str | None:
