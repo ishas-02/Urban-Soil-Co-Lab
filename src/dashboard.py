@@ -5538,6 +5538,19 @@ st.markdown(
     '<div class="gs-section"><h3>📊 Lead Distribution</h3></div>',
     unsafe_allow_html=True
 )
+# Charts sit on a white card in BOTH light and dark mode: the NYSH tier
+# colours are tuned for white (same as the site maps and resident reports),
+# and dark-red bars disappear on a black background.
+st.markdown(
+    """<style>
+    [data-testid="stPlotlyChart"] {
+        background: #ffffff; border: 1px solid #d0d7de; border-radius: 12px;
+        padding: 14px 10px 6px 6px; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+        overflow: hidden;
+    }
+    </style>""",
+    unsafe_allow_html=True,
+)
  
 if 'Lead' in filtered_chem_df.columns:
     # Horizontal histogram: lead concentration on the vertical axis, number of
@@ -5605,10 +5618,11 @@ if 'Lead' in filtered_chem_df.columns:
             margin=dict(t=20, b=40, l=70, r=20),
             bargap=0,
             hoverlabel=dict(bgcolor="#ffffff"),
-            font=dict(family="-apple-system, BlinkMacSystemFont, sans-serif"),
+            paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
+            font=dict(family="-apple-system, BlinkMacSystemFont, sans-serif", color="#1f2328"),
         )
 
-        st.plotly_chart(fig_hist, use_container_width=True)
+        st.plotly_chart(fig_hist, use_container_width=True, theme=None)
         _n = len(_pb)
         _hazard = int((_pb >= 400).sum())
         st.caption(
@@ -5652,9 +5666,10 @@ if 'Zinc' in filtered_chem_df.columns and 'Arsenic' in filtered_chem_df.columns:
         margin=dict(t=30, b=60, l=60, r=30),
         font=dict(family="-apple-system, BlinkMacSystemFont, sans-serif"),
         coloraxis_colorbar_title="Iron (ppm)",
+        paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
     )
  
-    st.plotly_chart(fig_corr, use_container_width=True)
+    st.plotly_chart(fig_corr, use_container_width=True, theme=None)
  
     st.caption(
         "Each point represents one XRF reading. Point size indicates "
