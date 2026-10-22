@@ -4628,6 +4628,7 @@ all coordinate conversions through calculate_coordinate_rotated().
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import numpy as np
 import plotly.graph_objects as go
 import glob
 import os
@@ -5539,43 +5540,84 @@ st.markdown(
 )
  
 if 'Lead' in filtered_chem_df.columns:
-    fig_hist = go.Figure()
- 
-    fig_hist.add_trace(go.Histogram(
-        x=filtered_chem_df['Lead'].dropna(),
-        nbinsx=25,
-        marker_color='#2d6a4f',
-        marker_line_color='#1a472a',
-        marker_line_width=0.5,
-        opacity=0.85,
-        hovertemplate="<b>%{x:.0f} ppm</b><br>Count: %{y}<extra></extra>",
-    ))
- 
-    thresholds = [
-        (63, "NYSH Elevated", "#f1c40f"),
-        (100, "NYSH Contaminated", "#e67e22"),
-        (200, "NYSH High", "#e74c3c"),
-        (400, "NYSH Hazard", "#800000"),
-    ]
-    for val, name, color in thresholds:
-        fig_hist.add_vline(
-            x=val, line_dash="dot", line_color=color, line_width=1.5,
-            annotation_text=name, annotation_font_size=10,
-            annotation_font_color=color,
+    # Horizontal histogram: lead concentration on the vertical axis, number of
+    # readings on the horizontal axis. Every bar sits entirely inside one NYSH
+    # tier and is coloured with that tier's colour from groundsense_config
+    # (the same colours as the site maps and resident reports). The tier names
+    # come from NYSH_TIERS, so this chart can never disagree with the rest of
+    # the pipeline.
+    _pb = pd.to_numeric(filtered_chem_df['Lead'], errors='coerce').dropna()
+    _pb = _pb[_pb >= 0]
+    if _pb.empty:
+        st.info("No lead readings in the selected date range.")
+    else:
+        _STEP = 50          # ppm per bar
+        _CAP = 2000         # readings above this are grouped into one bar
+        _bounds = [t["floor"] for t in NYSH_TIERS[1:]]            # 63, 100, 200, 400, 1000
+        _top = min(_CAP, int(np.ceil(_pb.max() / _STEP) * _STEP))
+        _edges = sorted(set(list(range(0, _top + 1, _STEP)) + [b for b in _bounds if b < _top]))
+        _over = int((_pb >= _CAP).sum()) if _pb.max() >= _CAP else 0
+
+        fig_hist = go.Figure()
+        for tier in NYSH_TIERS:
+            lo_t, hi_t = tier["floor"], tier["ceiling"]
+            ys, xs, ws, labels = [], [], [], []
+            for lo, hi in zip(_edges[:-1], _edges[1:]):
+                if lo >= lo_t and hi <= hi_t:
+                    n = int(((_pb >= lo) & (_pb < hi)).sum())
+                    ys.append((lo + hi) / 2); ws.append(hi - lo); xs.append(n)
+                    labels.append(f"{lo:g}–{hi:g} ppm")
+            if _over and lo_t <= _CAP < hi_t:
+                ys.append(_CAP + _STEP / 2); ws.append(_STEP); xs.append(_over)
+                labels.append(f"≥ {_CAP} ppm (max {_pb.max():,.0f})")
+            n_tier = int(((_pb >= lo_t) & (_pb < hi_t)).sum())
+            if not ys:
+                continue
+            fig_hist.add_trace(go.Bar(
+                y=ys, x=xs, width=[w * 0.9 for w in ws], orientation="h",
+                name=f"{tier['label']} · {n_tier}",
+                marker=dict(color=tier["color"], line=dict(color="#ffffff", width=1)),
+                customdata=[[lab, tier["label"]] for lab in labels],
+                hovertemplate=("<b>%{customdata[0]}</b><br>NYSH tier: %{customdata[1]}"
+                               "<br>%{x} reading(s)<extra></extra>"),
+            ))
+
+        # Tier boundaries: a thin line plus the ppm value on the axis.
+        for b in _bounds:
+            if b <= _top:
+                fig_hist.add_hline(y=b, line_dash="dot", line_color="#8b949e", line_width=1)
+        _ticks = [0] + [b for b in _bounds if b <= _top] + [v for v in (1500, 2000) if v <= _top and not (_over and v == _CAP)]
+        _ticktext = [f"{v:,}" for v in _ticks]
+        if _over:
+            _ticks.append(_CAP + _STEP / 2); _ticktext.append(f"≥{_CAP:,}")
+
+        fig_hist.update_layout(
+            title=dict(text=""),             # an empty title (None renders as "undefined")
+            xaxis=dict(title="Number of readings", rangemode="tozero",
+                       gridcolor="#eaeef2", zeroline=False),
+            yaxis=dict(title="Lead concentration (ppm)", tickvals=_ticks, ticktext=_ticktext,
+                       range=[0, _top + (_STEP * 1.2 if _over else 0)], showgrid=False, zeroline=False),
+            legend=dict(title=dict(text="NYSH lead tier · readings  ", side="top"),
+                        orientation="h", x=0, y=-0.16, xanchor="left", yanchor="top",
+                        traceorder="normal", font=dict(size=12)),
+            template="plotly_white",
+            height=640,
+            margin=dict(t=20, b=40, l=70, r=20),
+            bargap=0,
+            hoverlabel=dict(bgcolor="#ffffff"),
+            font=dict(family="-apple-system, BlinkMacSystemFont, sans-serif"),
         )
- 
-    fig_hist.update_layout(
-        title=None,
-        xaxis_title="Lead Concentration (ppm)",
-        yaxis_title="Number of Readings",
-        template="plotly_white",
-        height=380,
-        margin=dict(t=30, b=60, l=60, r=30),
-        bargap=0.05,
-        font=dict(family="-apple-system, BlinkMacSystemFont, sans-serif"),
-    )
- 
-    st.plotly_chart(fig_hist, use_container_width=True)
+
+        st.plotly_chart(fig_hist, use_container_width=True)
+        _n = len(_pb)
+        _hazard = int((_pb >= 400).sum())
+        st.caption(
+            f"{_n:,} XRF readings · median {_pb.median():,.0f} ppm · "
+            f"{_hazard:,} ({_hazard / _n:.0%}) at or above 400 ppm (NYSH High / Hazard). "
+            f"Each bar is a {_STEP} ppm band; bands are split at the tier boundaries "
+            f"({', '.join(str(b) for b in _bounds)} ppm) so every bar belongs to exactly one tier."
+            + (f" Readings of {_CAP:,} ppm and above are grouped in the top bar." if _over else "")
+        )
  
  
 # ═══════════════════════════════════════════════
@@ -5602,7 +5644,7 @@ if 'Zinc' in filtered_chem_df.columns and 'Arsenic' in filtered_chem_df.columns:
     )
  
     fig_corr.update_layout(
-        title=None,
+        title=dict(text=""),
         xaxis_title="Zinc (ppm)",
         yaxis_title="Lead (ppm)",
         template="plotly_white",
