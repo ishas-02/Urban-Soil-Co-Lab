@@ -885,6 +885,16 @@ try:
 except Exception:
     pass
 
+# Shared lab password (see src/password_gate.py). Deliberately NOT inside
+# a try/except: if the gate can't load, the app must stay locked.
+import os as _os2, sys as _sys2
+_here2 = _os2.path.dirname(_os2.path.abspath(__file__))
+for _d2 in (_here2, _os2.path.join(_here2, 'src')):
+    if _os2.path.exists(_os2.path.join(_d2, 'password_gate.py')) and _d2 not in _sys2.path:
+        _sys2.path.insert(0, _d2)
+from password_gate import require_password
+require_password('Field Entry')
+
  
 st.title("🌱 Field Sample Entry")
 st.caption(

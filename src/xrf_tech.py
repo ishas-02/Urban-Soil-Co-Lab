@@ -1137,36 +1137,21 @@ try:
 except Exception:
     pass
 
+# Shared lab password (see src/password_gate.py). Deliberately NOT inside
+# a try/except: if the gate can't load, the app must stay locked.
+import os as _os2, sys as _sys2
+_here2 = _os2.path.dirname(_os2.path.abspath(__file__))
+for _d2 in (_here2, _os2.path.join(_here2, 'src')):
+    if _os2.path.exists(_os2.path.join(_d2, 'password_gate.py')) and _d2 not in _sys2.path:
+        _sys2.path.insert(0, _d2)
+from password_gate import require_password
+require_password('XRF Tech')
+
 
 
 # ═════════════════════════════════════════════
 #  SECURITY GATEKEEPER (SINGLE PASSWORD MODE)
 # ═════════════════════════════════════════════
-def check_password():
-    def password_entered():
-        if st.session_state["password"] == st.secrets["lab_password"]:
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-
-    if "password_correct" not in st.session_state:
-        st.markdown("### 🔒 GroundSense Tech Portal Login")
-        st.text_input("Enter Lab Password", type="password",
-                      on_change=password_entered, key="password")
-        return False
-    elif not st.session_state["password_correct"]:
-        st.markdown("### 🔒 GroundSense Tech Portal Login")
-        st.text_input("Enter Lab Password", type="password",
-                      on_change=password_entered, key="password")
-        st.error("🚫 Incorrect password. Please try again.")
-        return False
-    else:
-        return True
-
-
-if not check_password():
-    st.stop()
 
 
 # ═════════════════════════════════════════════

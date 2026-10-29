@@ -15,6 +15,8 @@ Two independent checks, so it catches both kinds of failure:
    Any failure → red, with the reason in the tooltip.
 
 2. Browser-side heartbeat (JavaScript, every 10 s):
+     (after 2 missed heartbeats in a row a pop-up also tells the user the
+     app is down and to come back later; it closes itself on recovery)
      pings this app's own /_stcore/health endpoint. If the pod has crashed,
      is restarting, or the route is down, the ping fails → red "Offline",
      even though Python can no longer run. When the app comes back it turns
@@ -141,7 +143,7 @@ def _render(app_name: str, res: dict) -> None:
 _BADGE_JS = r"""
 (function () {
   var W = window, D = document;
-  var pill = null, cfg = null, offline = false;
+  var pill = null, cfg = null, offline = false, fails = 0, modal = null, dismissed = false;
 
   function build() {
     var css = D.createElement("style");
@@ -161,7 +163,19 @@ _BADGE_JS = r"""
       "font-weight:400;line-height:1.45;white-space:normal;box-shadow:0 4px 14px rgba(0,0,0,.2)}",
       "#gs-status-badge:hover .tip,#gs-status-badge.open .tip{display:block}",
       "@keyframes gsPulse{50%{opacity:.35}}",
-      "@media (max-width:640px){#gs-status-badge{right:.6rem;top:3.9rem}}"
+      "@media (max-width:640px){#gs-status-badge{right:.6rem;top:3.9rem}}",
+      "#gs-offline-modal{position:fixed;inset:0;z-index:999999;display:none;align-items:center;justify-content:center;",
+      "background:rgba(15,20,25,.55);backdrop-filter:blur(2px);padding:16px}",
+      "#gs-offline-modal.show{display:flex}",
+      "html.gs-offline [data-testid=stDialog]{display:none!important}",
+      "#gs-offline-modal .box{background:#fff;color:#1f2328;max-width:420px;width:100%;border-radius:14px;",
+      "padding:24px 24px 18px;box-shadow:0 12px 40px rgba(0,0,0,.35);font:15px/1.5 system-ui,-apple-system,sans-serif}",
+      "#gs-offline-modal h3{margin:0 0 8px;font-size:19px;display:flex;align-items:center;gap:.5rem}",
+      "#gs-offline-modal .dot{width:12px;height:12px;border-radius:50%;background:#cf222e;flex:none;animation:gsPulse 1.2s ease-in-out infinite}",
+      "#gs-offline-modal p{margin:0 0 10px;color:#424a53}",
+      "#gs-offline-modal .note{font-size:13px;color:#6e7781}",
+      "#gs-offline-modal button{margin-top:6px;border:1px solid #d0d7de;background:#f6f8fa;border-radius:8px;",
+      "padding:7px 14px;font:600 14px system-ui,sans-serif;cursor:pointer;color:#1f2328}"
     ].join("");
     D.head.appendChild(css);
     pill = D.createElement("div");
@@ -171,6 +185,26 @@ _BADGE_JS = r"""
     pill.addEventListener("click", function () { pill.classList.toggle("open"); });
     D.body.appendChild(pill);
   }
+
+  function showModal() {
+    if (dismissed) return;
+    if (!modal || !D.body.contains(modal)) {
+      modal = D.createElement("div");
+      modal.id = "gs-offline-modal";
+      modal.setAttribute("role", "alertdialog");
+      modal.setAttribute("aria-live", "assertive");
+      modal.innerHTML =
+        '<div class="box"><h3><span class="dot"></span><span class="t"></span></h3>' +
+        '<p>This application is currently down. Please come back later \u2014 it will reconnect by itself as soon as it is back.</p>' +
+        '<p class="note">If you were entering data, entries you had not saved yet may be lost. Note them down before you leave this page.</p>' +
+        '<button type="button">OK</button></div>';
+      modal.querySelector("button").addEventListener("click", function () { dismissed = true; modal.classList.remove("show"); });
+      D.body.appendChild(modal);
+    }
+    modal.querySelector(".t").textContent = (cfg && cfg.app ? cfg.app : "This app") + " is offline";
+    modal.classList.add("show");
+  }
+  function hideModal() { if (modal) modal.classList.remove("show"); dismissed = false; }
 
   function esc(t) {
     return String(t).replace(/[&<>"]/g, function (c) {
@@ -201,10 +235,16 @@ _BADGE_JS = r"""
         if (!cfg) return;
         if (!up) {
           offline = true;
+          fails += 1;
+          // Hide Streamlit's own developer-facing "Connection error" box
+          // ("streamlit run yourscript.py") — our message replaces it.
+          D.documentElement.classList.add("gs-offline");
+          if (fails >= 2) showModal();   // 2 misses in a row (~20 s) — avoids flashing on a one-off blip
           draw(false, "Offline", ["App is not reachable — it may be restarting.",
             "This turns green again by itself when the app is back.",
             "If it restarted, entries you had not saved yet may be lost — check the list before continuing."]);
         } else if (offline) {
+          fails = 0; hideModal(); D.documentElement.classList.remove("gs-offline");
           // Back up. The last server result is from before the outage, so show
           // a plain "Live" until the app's own checks report again.
           offline = false;
