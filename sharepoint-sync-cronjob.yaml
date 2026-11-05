@@ -4,7 +4,7 @@ metadata:
   name: sharepoint-sync
   namespace: urban-soil-co-lab
 spec:
-  schedule: "0 * * * *"            # top of every hour (UTC)
+  schedule: "*/15 * * * *"         # every 15 minutes (:00, :15, :30, :45); was hourly until 2026-10-22
   concurrencyPolicy: Forbid        # never run two syncs at once
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3

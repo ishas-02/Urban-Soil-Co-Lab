@@ -14,7 +14,7 @@ Operational guide for deploying code changes and managing the apps on UB CaaS
   (so rebuilds actually deploy — do NOT pin to an `@sha256:` digest).
 - **Persistent data** lives on the `soil-data` PVC, mounted at `/opt/app-root/src/data`
   on every app and on the sync job. `SOIL_DATA_DIR` env var points apps there.
-- **SharePoint** (`Urban Soil Co-Lab` library) is the source of truth; an **hourly
+- **SharePoint** (`Urban Soil Co-Lab` library) is the source of truth; a **15-minute
   CronJob** (`sharepoint-sync`) syncs SharePoint <-> the volume.
 
 ---
@@ -69,7 +69,7 @@ Make sure each requirement is on its OWN line (a missing newline mashes two
 together and breaks the build).
 
 ### Changed `sync_sharepoint.py`
-Rebuild the image (step 3). The CronJob uses `:latest`, so the **next hourly run
+Rebuild the image (step 3). The CronJob uses `:latest`, so the **next run (every 15 min)
 picks it up automatically** — no rollout needed. To test immediately:
 ```bash
 ./oc create job --from=cronjob/sharepoint-sync sp-test -n urban-soil-co-lab
