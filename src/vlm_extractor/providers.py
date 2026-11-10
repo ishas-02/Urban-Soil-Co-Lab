@@ -436,7 +436,7 @@ def _call_gemini(
         "generationConfig": {
             "temperature": 0.0,         # deterministic extraction
             "responseMimeType": "application/json",
-            "maxOutputTokens": 4096,
+            "maxOutputTokens": 8192,
         },
     }
 
@@ -520,7 +520,7 @@ def _call_claude(
     user_text = build_user_message(extra_hints)
     body = {
         "model": model,
-        "max_tokens": 4096,
+        "max_tokens": 8192,
         "temperature": 0.0,
         "system": SYSTEM_PROMPT,
         "messages": [

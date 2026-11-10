@@ -804,7 +804,15 @@ SITE_SKETCH_SCHEMA: dict[str, Any] = {
                         "enum": ["rect", "notch", "angle", "custom"],
                         "default": "rect",
                     },
-                    "shape_params": {"type": "object", "default": {}},
+                    "shape_params": {
+                        "type": "object",
+                        "default": {},
+                        "description": (
+                            "angle: {side, slant_len, slant_end} (preferred) "
+                            "or {side, inset_near, inset_far}; "
+                            "notch: {corner, notch_w, notch_h}"
+                        ),
+                    },
                     "local_polygon": {
                         "type": ["array", "null"],
                         "items": {
@@ -838,6 +846,15 @@ SITE_SKETCH_SCHEMA: dict[str, Any] = {
             "type": "string",
             "enum": ["high", "medium", "low"],
             "default": "high",
+        },
+        "questions": {
+            "type": "array",
+            "items": {"type": "string"},
+            "default": [],
+            "description": (
+                "Plain-English questions for the user about anything the "
+                "sketch doesn't settle. Empty when the sketch is clear."
+            ),
         },
     },
 }

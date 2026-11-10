@@ -448,10 +448,17 @@ SIMPLEST shape_kind that describes the cell:
   single side of the cell is not perpendicular to the others.
   shape_params:
     {"side": "L"|"R"|"T"|"B",
-     "inset_near": <feet>, "inset_far": <feet>}
-  L/R: inset_near is at the BOTTOM end of that edge, inset_far at the
-  TOP. T/B: inset_near is at the LEFT end of that edge, inset_far at
-  the RIGHT. Both insets push that edge endpoint INWARD into the cell.
+     "slant_len": <feet>, "slant_end": "near"|"far"}
+  PREFERRED: report the DIAGONAL LENGTH written along the slanted
+  edge as `slant_len` (e.g. 16' → 16.0) and say which end of that edge
+  is pushed into the cell with `slant_end`. Do NOT compute insets
+  yourself — the app does the trigonometry from the written number.
+  L/R: "near" = the BOTTOM end of that edge, "far" = the TOP end.
+  T/B: "near" = the LEFT end of that edge,  "far" = the RIGHT end.
+  ONLY if no diagonal length is written, give your best estimate as
+  {"side", "inset_near": <feet>, "inset_far": <feet>} instead (both
+  insets push that edge endpoint INWARD into the cell), mark the cell
+  confidence "low", and add a question asking for the measurement.
 
 - `custom` — anything else (two angled sides, curved boundary
   approximated as polygon, etc.). Provide `local_polygon` as a list of
@@ -484,11 +491,10 @@ When you see such an angle in the sketch:
   - Use `shape_kind = "angle"` on the affected cell.
   - The slanted edge is almost always the TOP (T) of the extension
     cell (the side facing the main grid).
-  - Set `inset_near = 0` (left end of top edge stays flush) and
-    `inset_far` to the approximate distance (in feet) the right
-    end of the top edge is pulled INTO the cell.
-  - If you can't measure the inset precisely, give a best estimate
-    AND mark confidence "low" so the user verifies it.
+  - If a diagonal length is written along it, put it in `slant_len`
+    and set `slant_end` to the end that is pulled INTO the cell.
+  - Otherwise give best-estimate insets, mark confidence "low", and
+    add a question (see "Questions" below).
 
 This is the single most common shape feature you'll need to capture
 beyond plain rectangles — pay close attention to it.
@@ -549,6 +555,16 @@ If you genuinely cannot read a dimension, give your best guess AND
 mark confidence "low" with a `notes` string explaining why ("shadow
 covers the right edge dimension"). Never invent a clean value to hide
 uncertainty.
+
+## Questions
+
+Work like a careful person reading the sketch with the field worker
+next to you. Add a top-level `questions` list (plain English, at most
+5, most important first) for anything you could not settle from the
+page — e.g. "Is the gap between 2B and 3B a walkway? I can't read its
+width." or "1A's left edge looks slanted but no diagonal length is
+written — what is it?". The user answers in a chat box and the app
+applies the answers. Leave `questions` empty when the sketch is clear.
 
 ## Output format
 
