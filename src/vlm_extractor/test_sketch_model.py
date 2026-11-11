@@ -328,3 +328,12 @@ def test_align_slant_keeps_measured_top_width():
     m2, done, errs = apply_ops(m, [{"op": "align_slant", "cells": ["A1", "B2"]}])
     assert not errs and m2["cells"]["B2"]["shape_params"]["top_width"] == 2
     assert "as measured" in done[0]
+
+
+def test_missing_labels_follow_the_sketch_style():
+    raw = {"rows": ["A", "B"], "ncols_per_row": {}, "max_cols": 1, "cells": {
+        "A1": {"row": "A", "col": 1, "width": 10, "height": 10, "sketch_label": "A1"},
+        "B1": {"row": "B", "col": 1, "width": 10, "height": 10}}}
+    m, _ = prepare(raw)
+    assert m["cells"]["B1"]["sketch_label"] == "B1"
+    assert to_form_vars(m, "Front")["cell_data"]["B1"]["pattern"] == "Front_B1_"

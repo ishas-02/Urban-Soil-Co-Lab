@@ -113,7 +113,20 @@ def prepare(raw: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     Returns (model, structural_problems). Also resolves written slant
     lengths into insets so the first preview is already correct.
     """
+    # Which way round does THIS sketch write labels ("B1" or "1B")? The
+    # SampleID pattern is built from the label, so cells the VLM left
+    # unlabelled must follow the same style as the ones it did label.
+    raw_cells = (raw or {}).get("cells") or {}
+    given = [str(c.get("sketch_label") or "") for c in raw_cells.values()]
+    row_first = sum(1 for g in given if re.fullmatch(r"[A-Z]\d+", g))
+    col_first = sum(1 for g in given if re.fullmatch(r"\d+[A-Z]", g))
+    unlabelled = {k for k, c in raw_cells.items() if not c.get("sketch_label")}
     model = normalize_extraction(copy.deepcopy(raw))
+    if row_first > col_first:
+        for k in unlabelled:
+            c = model["cells"].get(k)
+            if c and isinstance(c.get("col"), int):
+                c["sketch_label"] = f"{c['row']}{c['col']}"
     model.setdefault("questions", [])
     ok, problems = validate_extraction(model)
     for cid, cell in model.get("cells", {}).items():

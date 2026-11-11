@@ -154,7 +154,7 @@ def _align_slant(model: dict, op: dict) -> str:
         refresh_counts(model)
         resolve_slants(model)
         lay = layout(model)
-        cu, cl = cells[upper], cells[lower]
+        cl = cells[lower]
         if cl.get("shape_kind") != "angle":
             raise EditError(f"{label(lower, cl)} isn't a slanted cell")
         side = (cl.get("shape_params") or {}).get("side", "R")

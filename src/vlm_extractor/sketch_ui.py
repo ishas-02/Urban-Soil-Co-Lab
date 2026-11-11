@@ -271,7 +271,7 @@ def render_sketch_builder(yard_key: str, yard_choice: str) -> Optional[dict[str,
     warns = [f for f in findings if f["level"] == "warn"]
     asks = [f for f in findings if f["level"] == "ask"]
     if not findings:
-        st.success("✅ No open issues. If the map matches your sketch, continue to ⑦.")
+        st.success("✅ No open issues. If the map matches your sketch, carry on below (point samples, then Compute).")
     for f in errors:
         st.error(f["msg"])
     for f in warns:
