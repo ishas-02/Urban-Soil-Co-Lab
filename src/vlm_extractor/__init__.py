@@ -61,12 +61,12 @@ from .schema import (
 
 # The Streamlit UI is imported lazily so this package can be used from
 # non-Streamlit contexts (test scripts, headless extraction, CI).
-# Calling `from vlm_extractor import render_vlm_section` will trigger
+# Calling `from vlm_extractor import render_sketch_builder` will trigger
 # the import; otherwise Streamlit is never required.
 def __getattr__(name):
-    if name == "render_vlm_section":
-        from .streamlit_ui import render_vlm_section
-        return render_vlm_section
+    if name == "render_sketch_builder":
+        from .sketch_ui import render_sketch_builder
+        return render_sketch_builder
     raise AttributeError(f"module 'vlm_extractor' has no attribute {name!r}")
 
 
@@ -75,7 +75,7 @@ __all__ = [
     "SITE_SKETCH_SCHEMA",
     "extract_from_image",
     "normalize_extraction",
-    "render_vlm_section",
+    "render_sketch_builder",
     "to_cell_data",
     "validate_extraction",
 ]
