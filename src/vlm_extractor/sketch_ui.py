@@ -291,9 +291,15 @@ def render_sketch_builder(yard_key: str, yard_choice: str) -> Optional[dict[str,
                             placeholder="e.g. " + " · ".join(EXAMPLES[:3]))
         send = st.form_submit_button("Apply ➜", type="primary")
 
+    # Streamlit ≥1.40 calls it st.audio_input; 1.39 (our pinned version)
+    # has st.experimental_audio_input; older versions have neither.
     audio = None
-    if hasattr(st, "experimental_audio_input"):
-        audio = st.experimental_audio_input("🎤 Or say it", key=_k(yard_key, "mic"))
+    mic = getattr(st, "audio_input", None) or getattr(st, "experimental_audio_input", None)
+    if mic is not None:
+        audio = mic("🎤 Or say it", key=_k(yard_key, "mic"))
+    else:
+        st.caption(f"🎤 Voice needs Streamlit 1.39 or newer (this is {st.__version__}). "
+                   f"Typing works the same.")
     with st.expander("Examples of what you can say"):
         st.markdown("\n".join(f"- {e}" for e in EXAMPLES))
 
