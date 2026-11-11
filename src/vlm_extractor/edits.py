@@ -21,6 +21,9 @@ set_shape       cell, shape_kind = rect | angle | notch | custom
 set_row_height  row, height           (every cell in the row)
 set_col_width   col, width, [rows]    (every cell in that column, or only `rows`)
 set_row_gap     row, gap              (walkway between `row` and the next row)
+set_col_gap     col, width, [rows]    (walkway right of column `col`, every row or only `rows`)
+confirm         cells (list, or ["all"]) — the user says they're right
+align_slant     cells [top → bottom]  (staircase: each slanted cell starts where the one above ends)
 walkway_between a, b, width           (two neighbouring cells → gap_right or row gap)
 add_cell        cell, width, height, [shape fields as set_shape]
 remove_cell     cell
@@ -33,7 +36,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from .geometry import label, resolve_slants
+from .geometry import fmt_ft, label, resolve_slants
 from .sketch_model import parse_length, refresh_counts, resolve_cell_id
 
 
@@ -88,6 +91,13 @@ def _apply_shape(cell: dict, op: dict) -> None:
         else:
             params["inset_near"] = _len(op.get("inset_near", 0), "inset_near")
             params["inset_far"] = _len(op.get("inset_far", 0), "inset_far")
+        # Size of the cell at either end of the slanted edge, when known
+        # (e.g. "4 ft across the top" → top_width=4; a point → 0).
+        for key in ("top_width", "bottom_width", "left_height", "right_height"):
+            if op.get(key) not in (None, ""):
+                params[key] = _len(op[key], key.replace("_", " "))
+        if "slant_end" not in params and ("top_width" in params or "right_height" in params):
+            params["slant_end"] = "far"
         cell["shape_kind"], cell["shape_params"], cell["local_polygon"] = "angle", params, None
     elif kind == "notch":
         corner = str(op.get("corner", "TL")).upper()
@@ -120,6 +130,61 @@ def _new_cell(cid: str, width: float, height: float) -> dict:
     }
 
 
+def _align_slant(model: dict, op: dict) -> str:
+    """Make a staircase of slanted cells one continuous line.
+
+    ``cells`` lists the slanted cells from the top of the sketch down
+    (e.g. B2, C3, D4, E5). Each cell's short (top) end is set so it
+    starts exactly where the cell above ends at its bottom. Python does
+    this from the laid-out positions — the LLM never computes it.
+    """
+    from .geometry import layout, resolve_slants
+
+    refs = op.get("cells") or []
+    if len(refs) < 2:
+        raise EditError("align_slant needs at least two cells, top to bottom")
+    ids = [_cell(model, r)[0] for r in refs]
+    cells = model["cells"]
+    not_slanted = [label(i, cells[i]) for i in ids[1:] if cells[i].get("shape_kind") != "angle"]
+    if not_slanted:
+        raise EditError(f"{', '.join(not_slanted)} isn't slanted — make it slanted first "
+                        f"(e.g. set_shape angle side R with its diagonal).")
+    notes, kept = [], []
+    for upper, lower in zip(ids, ids[1:]):
+        refresh_counts(model)
+        resolve_slants(model)
+        lay = layout(model)
+        cu, cl = cells[upper], cells[lower]
+        if cl.get("shape_kind") != "angle":
+            raise EditError(f"{label(lower, cl)} isn't a slanted cell")
+        side = (cl.get("shape_params") or {}).get("side", "R")
+        # x where the upper cell's bottom edge ends on the slanted side
+        poly_u = lay[upper]["polygon"]
+        y_bot = min(p[1] for p in poly_u)
+        xs_bot = [p[0] for p in poly_u if abs(p[1] - y_bot) < 1e-6]
+        sp = cl.setdefault("shape_params", {})
+        if sp.get("top_width") not in (None, "") and not op.get("force"):
+            # A top width was written on the sketch (or given by the user):
+            # a measured number beats a geometric guess.
+            kept.append(f"{label(lower, cl)} ({fmt_ft(float(sp['top_width']))} as measured)")
+            continue
+        if side == "R":
+            top_w = max(xs_bot) - lay[lower]["x0"]
+            sp["top_width"] = round(max(0.0, top_w), 3)
+        elif side == "L":
+            top_w = lay[lower]["x1"] - min(xs_bot)
+            sp["top_width"] = round(max(0.0, top_w), 3)
+        else:
+            raise EditError("align_slant works on cells slanted on the left or right")
+        sp["slant_end"] = "far"
+        _touch(cl)
+        notes.append(f"{label(lower, cl)} top {sp['top_width']:.2f}'")
+    msg = "Joined the slant: " + (", ".join(notes) or "nothing to change")
+    if kept:
+        msg += " · kept measured tops for " + ", ".join(kept)
+    return msg
+
+
 def apply_op(model: dict, op: dict) -> str:
     """Apply ONE operation in place. Returns a short description."""
     kind = op.get("op")
@@ -132,6 +197,12 @@ def apply_op(model: dict, op: dict) -> str:
             if op.get(key) is not None:
                 c[key] = _len(op[key], key)
                 changed.append(key.replace("_", " "))
+        # An explicit width/height beats end-measurements on a slanted cell.
+        sp = c.get("shape_params") or {}
+        if op.get("width") is not None:
+            sp.pop("top_width", None); sp.pop("bottom_width", None)
+        if op.get("height") is not None:
+            sp.pop("left_height", None); sp.pop("right_height", None)
         if op.get("is_walkway") is not None:
             c["is_walkway"] = bool(op["is_walkway"])
             changed.append("walkway" if c["is_walkway"] else "not a walkway")
@@ -171,6 +242,18 @@ def apply_op(model: dict, op: dict) -> str:
             _touch(c)
         return f"Column {col}: width for {len(hit)} cells"
 
+    if kind == "set_col_gap":
+        col = int(op.get("col"))
+        w = _len(op.get("width"), "gap width")
+        only = {str(r).upper() for r in (op.get("rows") or [])}
+        hit = [c for c in cells.values() if int(c["col"]) == col and (not only or c["row"] in only)]
+        if not hit:
+            raise EditError(f"There's no column {col}.")
+        for c in hit:
+            c["gap_right"] = w
+            _touch(c)
+        return f"Walkway right of column {col} in {len(hit)} row(s)"
+
     if kind == "set_row_gap":
         row = str(op.get("row", "")).upper()
         if row not in (model.get("rows") or []):
@@ -196,6 +279,19 @@ def apply_op(model: dict, op: dict) -> str:
                 return (f"Walkway between rows {rows[min(ia, ib)]} and {rows[max(ia, ib)]} "
                         f"(the whole row, since rows run edge to edge)")
         raise EditError(f"{op.get('a')} and {op.get('b')} aren't next to each other.")
+
+    if kind == "confirm":
+        refs = op.get("cells") or ["all"]
+        if any(str(r).lower() == "all" for r in refs):
+            targets = list(cells.items())
+        else:
+            targets = [_cell(model, r) for r in refs]
+        for _cid, c in targets:
+            _touch(c)
+        return f"Confirmed {len(targets)} cell(s)"
+
+    if kind == "align_slant":
+        return _align_slant(model, op)
 
     if kind == "add_cell":
         try:
@@ -258,8 +354,10 @@ def apply_ops(model: dict, ops: list[dict]) -> tuple[dict, list[str], list[str]]
         if not isinstance(op, dict):
             errors.append(f"ignored malformed edit: {op!r}")
             continue
+        trial = copy.deepcopy(new)          # each op is all-or-nothing
         try:
-            done.append(apply_op(new, op))
+            done.append(apply_op(trial, op))
+            new = trial
         except (EditError, TypeError, ValueError, KeyError) as exc:
             errors.append(str(exc) or f"couldn't apply {op.get('op')}")
     refresh_counts(new)

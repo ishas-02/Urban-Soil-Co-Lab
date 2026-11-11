@@ -172,9 +172,24 @@ def check(model: dict[str, Any]) -> list[dict[str, str]]:
         if kind == "notch":
             if float(p.get("notch_w", 0) or 0) >= w or float(p.get("notch_h", 0) or 0) >= h:
                 add("warn", cid, f"{name}'s cut-out is as big as the cell itself.")
-        if c.get("confidence") in ("low", "medium") and not c.get("_verified"):
+        if c.get("confidence") == "low" and not c.get("_verified"):
             note = c.get("notes") or "the reading was unclear"
             add("ask", cid, f"{name}: {note}")
+
+    # Outliers: a cell far bigger than a typical cell is usually a number
+    # read off the wrong edge (e.g. a neighbour's label taken as this
+    # cell's top width).
+    import statistics
+    for dim in ("width", "height"):
+        vals = [float(c[dim]) for c in cells.values() if float(c.get(dim, 0) or 0) > 0]
+        if len(vals) >= 4:
+            med = statistics.median(vals)
+            for cid, c in sorted(cells.items()):
+                v = float(c.get(dim, 0) or 0)
+                if v > 1.6 * med and v - med > 4:
+                    add("warn", cid, f"{label(cid, c)} comes out {fmt_ft(v)} {('wide' if dim == 'width' else 'tall')}"
+                                     f" — much bigger than a typical cell ({fmt_ft(med)}). "
+                                     f"Probably a number read from the wrong edge.")
 
     # Cells in one row with different heights — Compute uses the first
     # cell's height for the whole row and pins the rest to the house side.
@@ -206,6 +221,13 @@ def check(model: dict[str, Any]) -> list[dict[str, str]]:
                 add("warn", "", f"Rows with {n} cells have different total widths "
                                 f"({detail}). Fine if the yard really narrows; "
                                 f"otherwise a width was misread.")
+
+    # Medium-confidence cells: one grouped line instead of one per cell.
+    unsure = [label(k, c) for k, c in sorted(cells.items())
+              if c.get("confidence") == "medium" and not c.get("_verified")]
+    if unsure:
+        add("ask", "", f"Not fully sure about {', '.join(unsure)} — check them against the "
+                       f"sketch, then correct them or say \"those look right\".")
 
     for q in model.get("questions") or []:
         add("ask", "", str(q))

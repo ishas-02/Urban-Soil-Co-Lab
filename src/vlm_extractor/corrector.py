@@ -55,6 +55,13 @@ operations on the model. Python applies them and redraws the map.
     that edge is pushed INTO the cell: for L/R "near"=bottom "far"=top;
     for T/B "near"=left "far"=right. If the user gives an offset instead
     of a diagonal, use "inset_near"/"inset_far" (feet) and omit slant_len.
+    Optional: "top_width"/"bottom_width" (L/R) or "left_height"/"right_height"
+    (T/B) = the cell's size at that end of the slant ("4 ft across the top
+    of 2B" → top_width 4; a pointed end → 0). The app computes the rest.
+    For a slanted cell, a width the user gives for its top or bottom goes
+    in top_width / bottom_width inside set_shape — not in set_cell width.
+    set_shape REPLACES the cell's whole shape: repeat every measurement
+    that should stay, and leave out any the user says is wrong or absent.
 {"op":"set_shape","cell":"3C","shape_kind":"notch","corner":"TR","notch_w":3,"notch_h":2}
 {"op":"set_shape","cell":"3C","shape_kind":"rect"}
 {"op":"set_shape","cell":"4D","shape_kind":"custom","polygon":[[0,0],[8,0],[8,6],[0,10]]}
@@ -62,6 +69,15 @@ operations on the model. Python applies them and redraws the map.
 {"op":"walkway_between","a":"2B","b":"3B","width":4}
     the app decides whether that is a column gap or a row gap.
 {"op":"set_row_gap","row":"C","gap":3}     walkway below row C
+{"op":"set_col_gap","col":2,"width":2}      walkway between columns 2 and 3 in
+    EVERY row (add "rows":["A","B"] to limit it). walkway_between only
+    touches the one pair of cells you name.
+{"op":"align_slant","cells":["B2","C3","D4","E5"]}
+    the slanted cells form ONE continuous line: each cell WITHOUT a top
+    width starts where the one above it ends (measured top widths are
+    kept). Use when the user says the diagonal is one line or a cell's
+    top "lines up with" the cell above. List cells top to bottom; every
+    listed cell must already be slanted.
 {"op":"set_row_height","row":"C","height":12}
 {"op":"set_col_width","col":2,"width":9.5}           (optional "rows":["A","B"])
 {"op":"add_cell","cell":"5E","width":10,"height":10}
@@ -69,6 +85,8 @@ operations on the model. Python applies them and redraws the map.
 {"op":"add_row","row":"F","ncols":4,"width":10,"height":10}
 {"op":"remove_row","row":"F"}
 {"op":"set_cell","cell":"2C","is_walkway":true}      cell itself is a path
+{"op":"confirm","cells":["all"]}   or a list — the user says these look right
+    (use this instead of re-setting values that don't change)
 
 ## Rules
 1. Change ONLY what the user asked about. Never "tidy up" other cells.
@@ -77,9 +95,15 @@ operations on the model. Python applies them and redraws the map.
 3. If the user asks you to look at the sketch again ("re-read row C"),
    use the image and return ops for what you now read.
 4. If the user is just answering one of the open questions, apply it.
-5. "reply" = one short, plain sentence saying what you changed, using
-   the user's own cell labels (e.g. "Set 2B to 10' 6\\" wide.").
-6. "questions" = every question that is STILL open after this turn:
+5. "reply" = one short, plain sentence saying what YOUR OPS change —
+   nothing more — using the user's cell labels (e.g. "Set 2B to 10' 6\\" wide.").
+6. When the user points at rows/cells by position on the paper ("the
+   bottom two rows", "the cell by the stairs"), identify them from the
+   IMAGE and the measurements they quote (the model lists each row's
+   height), not from the word "bottom" alone — photos may be upside
+   down relative to the map (map: row A = far from house = top).
+   Name the rows/cells you picked in the reply so the user can check.
+7. "questions" = every question that is STILL open after this turn:
    earlier questions the user hasn't answered yet, plus any new one.
    Drop questions this message answered. Empty list when nothing is open.
 
@@ -99,7 +123,13 @@ def compact_model(model: dict[str, Any]) -> dict[str, Any]:
         }
         if c.get("shape_kind", "rect") != "rect":
             item["shape"] = c["shape_kind"]
-            item["shape_params"] = c.get("shape_params") or {}
+            sp = dict(c.get("shape_params") or {})
+            if sp.get("slant_len") not in (None, ""):
+                # insets are computed from the measurements — showing them
+                # only invites the model to "fix" derived numbers.
+                sp.pop("inset_near", None)
+                sp.pop("inset_far", None)
+            item["shape_params"] = sp
             if c.get("local_polygon"):
                 item["polygon"] = c["local_polygon"]
         if c.get("gap_right"):
@@ -108,7 +138,15 @@ def compact_model(model: dict[str, Any]) -> dict[str, Any]:
             item["is_walkway"] = True
         cells.append(item)
     gaps = {r: g for r, g in (model.get("row_gap_below") or {}).items() if g}
-    return {"rows": model.get("rows", []), "row_gap_below": gaps, "cells": cells}
+    from .geometry import row_heights
+    rh = row_heights(model)
+    rows = model.get("rows", [])
+    row_info = [{"row": r, "height": round(rh.get(r, 0), 3),
+                 "cells": sum(1 for c in (model.get("cells") or {}).values() if c["row"] == r),
+                 "position": ("farthest from house" if i == 0 else
+                              "nearest the house" if i == len(rows) - 1 else "")}
+                for i, r in enumerate(rows)]
+    return {"rows": row_info, "row_gap_below": gaps, "cells": cells}
 
 
 def build_user_text(model: dict, instruction: str, chat: list[dict] | None = None) -> str:
@@ -128,6 +166,19 @@ def build_user_text(model: dict, instruction: str, chat: list[dict] | None = Non
 #  Provider calls (same HTTP style as providers.py)
 # ════════════════════════════════════════════════════════════════
 
+def _claude_body(model: str, system: str, content: list) -> dict:
+    """Request body; uses a small thinking budget so the model checks
+    which cell/edge the user means before answering."""
+    budget = int(os.environ.get("VLM_FIX_THINKING_BUDGET", "2500") or 0)
+    body = {"model": model, "max_tokens": 2048, "temperature": 0.0,
+            "system": system, "messages": [{"role": "user", "content": content}]}
+    if budget > 0:
+        body.update(thinking={"type": "enabled", "budget_tokens": budget},
+                    max_tokens=budget + 2048)
+        body.pop("temperature")
+    return body
+
+
 def _post_claude(system: str, text: str, image: Optional[tuple[bytes, str]],
                  model: str, api_key: str, timeout: int) -> str:
     import requests
@@ -141,8 +192,7 @@ def _post_claude(system: str, text: str, image: Optional[tuple[bytes, str]],
         "https://api.anthropic.com/v1/messages",
         headers={"Content-Type": "application/json", "x-api-key": api_key,
                  "anthropic-version": "2023-06-01"},
-        json={"model": model, "max_tokens": 2048, "temperature": 0.0,
-              "system": system, "messages": [{"role": "user", "content": content}]},
+        json=_claude_body(model, system, content),
         timeout=timeout,
     )
     if resp.status_code >= 400:

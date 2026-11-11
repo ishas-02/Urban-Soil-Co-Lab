@@ -541,6 +541,14 @@ def _call_claude(
         ],
     }
 
+    # Let the model reason before answering (reading which number belongs
+    # to which edge is a multi-step job). Thinking requires temperature 1.
+    thinking_budget = int(os.environ.get("VLM_THINKING_BUDGET", "4000") or 0)
+    if thinking_budget > 0:
+        body["thinking"] = {"type": "enabled", "budget_tokens": thinking_budget}
+        body["max_tokens"] = thinking_budget + 8192
+        body.pop("temperature", None)
+
     resp = requests.post(url, headers=headers, json=body, timeout=timeout)
     if resp.status_code >= 400:
         try:

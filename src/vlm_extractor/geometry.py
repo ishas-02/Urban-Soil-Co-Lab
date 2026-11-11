@@ -126,26 +126,58 @@ def resolve_slants(model: dict[str, Any]) -> list[str]:
         if cell.get("shape_kind") != "angle":
             continue
         p = cell.setdefault("shape_params", {})
-        slant = p.get("slant_len")
-        if slant in (None, "", 0):
-            continue
+        side = p.get("side", "L")
+        end = "near" if p.get("slant_end") == "near" else "far"
+        # The cell's size ACROSS the slant (width for L/R, height for T/B)
+        # at each end of the slanted edge, when written on the sketch.
+        # e.g. a staircase cell with "4'" written along its top edge has
+        # top_width=4; a pointed (triangle) cell has top_width=0.
+        if side in ("L", "R"):
+            at = {"near": p.get("bottom_width"), "far": p.get("top_width")}
+            size_key = "width"
+        else:
+            at = {"near": p.get("left_height"), "far": p.get("right_height")}
+            size_key = "height"
         try:
-            slant = float(slant)
+            at = {k: (None if v in (None, "") else float(v)) for k, v in at.items()}
+            slant = p.get("slant_len")
+            slant = None if slant in (None, "", 0) else float(slant)
         except (TypeError, ValueError):
-            problems.append(f"{label(cid, cell)}: slant length '{slant}' is not a number")
+            problems.append(f"{label(cid, cell)}: a slant measurement is not a number")
             continue
-        span = slant_edge_span(cell)
-        if slant + 1e-6 < span:
-            problems.append(
-                f"{label(cid, cell)}: slanted edge {fmt_ft(slant)} is shorter than "
-                f"the straight edge it replaces ({fmt_ft(span)}) — one of the two "
-                f"numbers is misread."
-            )
+        pushed, full = at[end], at["far" if end == "near" else "near"]
+
+        if pushed is not None and full is not None:
+            # Both ends written: the slant follows from them.
+            offset = max(0.0, full - pushed)
+            if slant is not None:
+                implied = math.hypot(offset, slant_edge_span(cell))
+                if abs(implied - slant) > 1.0:
+                    problems.append(
+                        f"{label(cid, cell)}: the written ends ({fmt_ft(pushed)} and "
+                        f"{fmt_ft(full)}) and the diagonal ({fmt_ft(slant)}) don't agree "
+                        f"(they imply a {fmt_ft(implied)} diagonal) — one is misread."
+                    )
+            cell[size_key] = full
+        elif slant is not None:
+            span = slant_edge_span(cell)
+            if slant + 1e-6 < span:
+                problems.append(
+                    f"{label(cid, cell)}: slanted edge {fmt_ft(slant)} is shorter than "
+                    f"the straight edge it replaces ({fmt_ft(span)}) — one of the two "
+                    f"numbers is misread."
+                )
+                continue
+            offset = math.sqrt(max(0.0, slant * slant - span * span))
+            if pushed is not None:
+                cell[size_key] = round(pushed + offset, 3)   # wide end = short end + run
+            elif full is not None:
+                cell[size_key] = full
+        else:
             continue
-        offset = round(math.sqrt(max(0.0, slant * slant - span * span)), 3)
-        end = p.get("slant_end", "far")
+        offset = round(offset, 3)
         p["inset_near"] = offset if end == "near" else 0.0
-        p["inset_far"] = offset if end != "near" else 0.0
+        p["inset_far"] = offset if end == "far" else 0.0
     return problems
 
 

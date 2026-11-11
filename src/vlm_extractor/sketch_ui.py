@@ -32,6 +32,7 @@ import streamlit as st
 from .corrector import correct, default_call
 from .edits import History
 from .geometry import label
+from .image_prep import normalise, rotate
 from .preview import render_png
 from .sketch_model import check, empty_model, prepare, to_form_vars
 
@@ -102,7 +103,7 @@ def _read_sketch(yard_key: str, backend: str, model_name: str, hints: str) -> No
         path = tmp.name
     try:
         result = extract_from_image(path, backend=backend, model=model_name,
-                                    extra_hints=hints or None)
+                                    extra_hints=hints or None, timeout=180)
     finally:
         try:
             os.unlink(path)
@@ -181,7 +182,10 @@ def render_sketch_builder(yard_key: str, yard_choice: str) -> Optional[dict[str,
     if up is not None:
         data = up.getvalue()
         if _get(yard_key, "image_name") != (up.name, len(data)):
-            _set(yard_key, "image", (data, up.type or "image/jpeg"))
+            try:
+                _set(yard_key, "image", normalise(data))   # upright + ≤2000 px
+            except Exception:
+                _set(yard_key, "image", (data, up.type or "image/jpeg"))
             _set(yard_key, "image_name", (up.name, len(data)))
 
     c1, c2, c3, c4 = st.columns(4)
@@ -204,7 +208,7 @@ def render_sketch_builder(yard_key: str, yard_choice: str) -> Optional[dict[str,
                             use_container_width=True, key=_k(yard_key, "reset_btn"))
 
     if read:
-        with st.spinner("Reading the sketch… (up to a minute for big grids)"):
+        with st.spinner("Reading the sketch… (about a minute — it double-checks which number belongs to which edge)"):
             try:
                 _read_sketch(yard_key, backend, model_name, hints)
             except Exception as exc:
@@ -229,6 +233,16 @@ def render_sketch_builder(yard_key: str, yard_choice: str) -> Optional[dict[str,
         st.rerun()
 
     if model is None:
+        img = _get(yard_key, "image")
+        if img:
+            pc, _ = st.columns([1, 2])
+            with pc:
+                st.image(img[0], use_column_width=True)
+                if st.button("↻ Rotate photo", key=_k(yard_key, "rotate_btn0"),
+                             help="Optional — the AI copes with sideways photos, "
+                                  "but upright is a little more reliable."):
+                    _set(yard_key, "image", (rotate(img[0], 90), "image/jpeg"))
+                    st.rerun()
         st.info("Upload the sketch and press **Read sketch** to begin.")
         return None
 
@@ -239,6 +253,10 @@ def render_sketch_builder(yard_key: str, yard_choice: str) -> Optional[dict[str,
         img = _get(yard_key, "image")
         if img:
             st.image(img[0], use_column_width=True)
+            if st.button("↻ Rotate photo", key=_k(yard_key, "rotate_btn"),
+                         help="Turn a sideways photo upright, then Re-read sketch."):
+                _set(yard_key, "image", (rotate(img[0], 90), "image/jpeg"))
+                st.rerun()
         else:
             st.caption("_(no photo)_")
     with right:

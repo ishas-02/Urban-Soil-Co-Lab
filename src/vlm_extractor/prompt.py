@@ -414,6 +414,19 @@ or RIGHT of the grid are ROW HEIGHTS (along the strip). Sometimes the
 right-edge dimensions vary per row — that means the rows have
 different heights.
 
+## Orientation and clutter
+
+Photos may be sideways or upside down. Work out "up" from the
+handwriting and from the house: the HOUSE side is always the BOTTOM
+(near-house) side, whatever the photo's rotation. Describe the grid as
+if the sketch were turned so the house is at the bottom.
+
+Sketches also show things that are NOT grid cells: the house, garages,
+sheds, coops, trees, sandboxes, paving, notes, dates, fixed-point
+measurements and tie-line distances. Do not turn these into cells. Only
+labelled sampling cells (A1, 2B, …) become cells. A labelled cell that
+contains a structure is still a cell — mention it in that cell's notes.
+
 ## Conventions you MUST follow
 
 1. The sketch's TOP is the far-from-house side. The sketch's BOTTOM is
@@ -455,6 +468,21 @@ SIMPLEST shape_kind that describes the cell:
   yourself — the app does the trigonometry from the written number.
   L/R: "near" = the BOTTOM end of that edge, "far" = the TOP end.
   T/B: "near" = the LEFT end of that edge,  "far" = the RIGHT end.
+  ALSO copy any number written ALONG THE TOP or BOTTOM EDGE OF THAT
+  SAME CELL (for side L/R) into "top_width" / "bottom_width"; for side
+  T/B use "left_height" / "right_height". Only numbers you can SEE next
+  to that cell's own edge. Never invent one, never move a number from
+  one end to the other. Use 0 only for a cell that is a true triangle
+  (its top edge has no length at all — e.g. the first cell of a
+  staircase whose left edge and slant meet in a point).
+  Worked example: a cell 10' tall whose right edge slants, with 13'
+  written along the slant and 4' written along its top edge →
+    "shape_params": {"side": "R", "slant_len": 13, "slant_end": "far",
+                     "top_width": 4}
+  (no bottom_width: nothing is written along its bottom edge). The app
+  computes the bottom width (4 + √(13² − 10²) ≈ 12.3') itself.
+  A diagonal number written along a long sloping line belongs to the
+  cell whose slanted edge it sits beside — one slant_len per cell.
   ONLY if no diagonal length is written, give your best estimate as
   {"side", "inset_near": <feet>, "inset_far": <feet>} instead (both
   insets push that edge endpoint INWARD into the cell), mark the cell
